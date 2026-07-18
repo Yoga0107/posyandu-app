@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../features/auth/presentation/screens/login_screen.dart';
-import '../features/auth/presentation/screens/register_screen.dart';
-import '../features/dashboard/presentation/screens/home_screen.dart';
+import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/register_screen.dart';
+import '../../features/dashboard/presentation/screens/home_screen.dart';
 
 class AppRouter {
   static const String splash    = '/';

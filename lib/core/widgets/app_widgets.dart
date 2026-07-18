@@ -167,26 +167,23 @@ class JenisJadwalChip extends StatelessWidget {
 
   Color get _color {
     switch (jenis) {
-      case 'penimbangan': return AppColors.primary;
-      case 'imunisasi':   return AppColors.accent;
-      case 'penyuluhan':  return AppColors.orange;
-      default:            return AppColors.textSecondary;
+      case 'posyandu': return AppColors.primary;
+      case 'posbindu': return AppColors.accent;
+      default:         return AppColors.textSecondary;
     }
   }
 
   IconData get _icon {
     switch (jenis) {
-      case 'penimbangan': return Icons.monitor_weight_outlined;
-      case 'imunisasi':   return Icons.vaccines_outlined;
-      case 'penyuluhan':  return Icons.school_outlined;
-      case 'pemeriksaan': return Icons.medical_services_outlined;
-      default:            return Icons.event_outlined;
+      case 'posyandu': return Icons.child_care_rounded;
+      case 'posbindu': return Icons.elderly_rounded;
+      default:         return Icons.event_outlined;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final label = AppConstants.jenisJadwal[jenis] ?? jenis;
+    final label = AppConstants.jenisKegiatan[jenis] ?? jenis;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(color: _color.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),

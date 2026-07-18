@@ -69,7 +69,7 @@ class WargaModel {
 }
 
 // ═══════════════════════════════════════
-//  JADWAL KEGIATAN MODEL
+//  JADWAL KEGIATAN MODEL — FIXED
 // ═══════════════════════════════════════
 class JadwalModel {
   final String id;
@@ -78,25 +78,50 @@ class JadwalModel {
   final String lokasi;
   final String jenisKegiatan; // 'posyandu' | 'posbindu'
   final String? keterangan;
-  final String dibuatOleh;
+  final String? dibuatOleh;
   final String? namaPembuat;
   final int jumlahMenu;
   final String? createdAt;
 
-  JadwalModel({required this.id, required this.tanggal, required this.jam, required this.lokasi, required this.jenisKegiatan, this.keterangan, required this.dibuatOleh, this.namaPembuat, this.jumlahMenu = 0, this.createdAt});
+  JadwalModel({
+    required this.id,
+    required this.tanggal,
+    required this.jam,
+    required this.lokasi,
+    required this.jenisKegiatan,
+    this.keterangan,
+    this.dibuatOleh,
+    this.namaPembuat,
+    this.jumlahMenu = 0,
+    this.createdAt,
+  });
 
   bool get isPosyandu => jenisKegiatan == 'posyandu';
   bool get isPosbindu => jenisKegiatan == 'posbindu';
   String get jenisLabel => isPosyandu ? 'Posyandu' : 'Posbindu';
 
   factory JadwalModel.fromJson(Map<String, dynamic> j) => JadwalModel(
-    id: j['id'], tanggal: j['tanggal'], jam: j['jam'],
-    lokasi: j['lokasi'], jenisKegiatan: j['jenis_kegiatan'],
-    keterangan: j['keterangan'], dibuatOleh: j['dibuat_oleh'],
-    namaPembuat: j['nama_pembuat'],
-    jumlahMenu: j['jumlah_menu'] != null ? (j['jumlah_menu'] as num).toInt() : 0,
-    createdAt: j['created_at'],
-  );
+        id: j['id'],
+        tanggal: j['tanggal'],
+        jam: j['jam'],
+        lokasi: j['lokasi'],
+        jenisKegiatan: j['jenis_kegiatan'],
+        keterangan: j['keterangan'],
+        dibuatOleh: j['dibuat_oleh'],
+        namaPembuat: j['nama_pembuat'],
+        // FIX: jumlah_menu bisa datang sebagai String ("0") dari COUNT() PostgreSQL,
+        // atau sebagai num kalau backend berbeda. int.tryParse aman untuk keduanya.
+        jumlahMenu: _parseInt(j['jumlah_menu']),
+        createdAt: j['created_at'],
+      );
+
+  static int _parseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
 }
 
 // ═══════════════════════════════════════
@@ -121,7 +146,7 @@ class MenuPMTModel {
 class KunjunganModel {
   final String id;
   final String wargaId;
-  final String jadwalId;
+  final String? jadwalId;
   final String dicatatOleh;
   final String waktuCheckin;
   final String statusPmt; // 'belum' | 'sudah'
@@ -140,7 +165,7 @@ class KunjunganModel {
   final int? nomorUrut;
   final Map<String, bool>? progresMeja;
 
-  KunjunganModel({required this.id, required this.wargaId, required this.jadwalId, required this.dicatatOleh, required this.waktuCheckin, required this.statusPmt, this.waktuPmt, this.namaWarga, this.kategori, this.tanggalLahir, this.tanggalJadwal, this.jenisKegiatan, this.namaKader, this.sudahDiperiksaBalita = false, this.sudahDiperiksaPosbindu = false, this.statusGizi, this.statusTensi, this.nomorUrut, this.progresMeja});
+  KunjunganModel({required this.id, required this.wargaId, this.jadwalId, required this.dicatatOleh, required this.waktuCheckin, required this.statusPmt, this.waktuPmt, this.namaWarga, this.kategori, this.tanggalLahir, this.tanggalJadwal, this.jenisKegiatan, this.namaKader, this.sudahDiperiksaBalita = false, this.sudahDiperiksaPosbindu = false, this.statusGizi, this.statusTensi, this.nomorUrut, this.progresMeja});
 
   bool get sudahPMT => statusPmt == 'sudah';
 
@@ -166,7 +191,7 @@ class PemeriksaanBalitaModel {
   final String id;
   final String kunjunganId;
   final double beratBadanKg;
-  final double tinggiBadanCm;
+  final double? tinggiBadanCm;
   final double? lingkarKepalaCm;
   final bool vitaminA;
   final String? jenisImunisasi;
@@ -178,7 +203,7 @@ class PemeriksaanBalitaModel {
   final double? zScoreTBU;
   final String? labelStatus;
 
-  PemeriksaanBalitaModel({required this.id, required this.kunjunganId, required this.beratBadanKg, required this.tinggiBadanCm, this.lingkarKepalaCm, this.vitaminA = false, this.jenisImunisasi, this.statusGizi, this.dicatatOleh, this.umurBulan, this.zScoreBBU, this.zScoreTBU, this.labelStatus});
+  PemeriksaanBalitaModel({required this.id, required this.kunjunganId, required this.beratBadanKg, this.tinggiBadanCm, this.lingkarKepalaCm, this.vitaminA = false, this.jenisImunisasi, this.statusGizi, this.dicatatOleh, this.umurBulan, this.zScoreBBU, this.zScoreTBU, this.labelStatus});
 
   factory PemeriksaanBalitaModel.fromJson(Map<String, dynamic> j) {
     final p = j['pemeriksaan'] ?? j;
@@ -186,7 +211,7 @@ class PemeriksaanBalitaModel {
     return PemeriksaanBalitaModel(
       id: p['id'], kunjunganId: p['kunjungan_id'],
       beratBadanKg: (p['berat_badan_kg'] as num).toDouble(),
-      tinggiBadanCm: (p['tinggi_badan_cm'] as num).toDouble(),
+      tinggiBadanCm: p['tinggi_badan_cm'] != null ? (p['tinggi_badan_cm'] as num).toDouble() : null,
       lingkarKepalaCm: p['lingkar_kepala_cm'] != null ? (p['lingkar_kepala_cm'] as num).toDouble() : null,
       vitaminA: p['vitamin_a'] ?? false,
       jenisImunisasi: p['jenis_imunisasi'],

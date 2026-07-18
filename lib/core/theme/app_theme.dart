@@ -87,7 +87,6 @@ class AppTheme {
         primary: AppColors.primary,
         secondary: AppColors.accent,
         tertiary: AppColors.orange,
-        background: AppColors.background,
         surface: AppColors.surface,
         error: AppColors.error,
       ),
@@ -117,7 +116,7 @@ class AppTheme {
         ),
         iconTheme: const IconThemeData(color: AppColors.white),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.surface,
         elevation: 2,
         shadowColor: AppColors.primary.withOpacity(0.12),

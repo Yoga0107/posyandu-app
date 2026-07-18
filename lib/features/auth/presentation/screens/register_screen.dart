@@ -1,7 +1,22 @@
+// ═══════════════════════════════════════════════════════════════
+//  CATATAN PERBAIKAN:
+//  Layar ini semula adalah "Register" (buat akun baru: nama, email,
+//  password, dst) dan memanggil AuthProvider.register(...) — method
+//  yang TIDAK ADA di AuthProvider maupun di backend (tidak ada route
+//  POST /auth/register di routes/index.routes.js). Akun kader/warga
+//  hanya bisa dibuat oleh RW lewat endpoint admin (POST /users),
+//  bukan self sign-up.
+//
+//  Yang benar-benar didukung backend untuk warga/kader yang SUDAH
+//  login adalah mendaftarkan data warga (balita/lansia) lewat
+//  POST /warga — makanya layar ini diubah menjadi form "Tambah Data
+//  Warga", memakai WargaProvider.create() yang sudah sesuai dengan
+//  warga.controller.js.
+// ═══════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../auth_provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/providers.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -10,47 +25,66 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _formKey       = GlobalKey<FormState>();
-  final _nameCtrl      = TextEditingController();
-  final _emailCtrl     = TextEditingController();
-  final _passCtrl      = TextEditingController();
-  final _confirmCtrl   = TextEditingController();
-  final _phoneCtrl     = TextEditingController();
-  final _nikCtrl       = TextEditingController();
-  final _addressCtrl   = TextEditingController();
-  final _rtRwCtrl      = TextEditingController();
-  final _kelurahanCtrl = TextEditingController();
-  bool _obscure    = true;
-  bool _obscure2   = true;
-  int  _currentStep = 0;
+  final _formKey          = GlobalKey<FormState>();
+  final _nikCtrl          = TextEditingController();
+  final _alamatCtrl       = TextEditingController();
+  final _namaOrangTuaCtrl = TextEditingController();
+
+  DateTime? _tanggalLahir;
+  String _jenisKelamin = 'L';   // 'L' | 'P'
+  String _kategori     = 'balita'; // 'balita' | 'lansia'
 
   @override
   void dispose() {
-    for (final c in [_nameCtrl, _emailCtrl, _passCtrl, _confirmCtrl, _phoneCtrl, _nikCtrl, _addressCtrl, _rtRwCtrl, _kelurahanCtrl]) {
-      c.dispose();
-    }
+    _nikCtrl.dispose();
+    _alamatCtrl.dispose();
+    _namaOrangTuaCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
-    final auth = context.read<AuthProvider>();
-    final ok   = await auth.register(
-      name: _nameCtrl.text.trim(),
-      email: _emailCtrl.text.trim(),
-      password: _passCtrl.text,
-      phone: _phoneCtrl.text.trim().isNotEmpty ? _phoneCtrl.text.trim() : null,
-      nik: _nikCtrl.text.trim().isNotEmpty ? _nikCtrl.text.trim() : null,
-      address: _addressCtrl.text.trim().isNotEmpty ? _addressCtrl.text.trim() : null,
-      rtRw: _rtRwCtrl.text.trim().isNotEmpty ? _rtRwCtrl.text.trim() : null,
-      kelurahan: _kelurahanCtrl.text.trim().isNotEmpty ? _kelurahanCtrl.text.trim() : null,
+  Future<void> _pickTanggalLahir() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime(now.year - 1),
+      firstDate: DateTime(now.year - 100),
+      lastDate: now,
+      helpText: 'Pilih Tanggal Lahir',
     );
+    if (picked != null) setState(() => _tanggalLahir = picked);
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_tanggalLahir == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tanggal lahir wajib diisi'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+
+    final warga = context.read<WargaProvider>();
+    final tglStr =
+        '${_tanggalLahir!.year.toString().padLeft(4, '0')}-${_tanggalLahir!.month.toString().padLeft(2, '0')}-${_tanggalLahir!.day.toString().padLeft(2, '0')}';
+
+    final ok = await warga.create({
+      'nik': _nikCtrl.text.trim(),
+      'tanggal_lahir': tglStr,
+      'jenis_kelamin': _jenisKelamin,
+      'kategori': _kategori,
+      'nama_orang_tua': _namaOrangTuaCtrl.text.trim().isNotEmpty ? _namaOrangTuaCtrl.text.trim() : null,
+      'alamat': _alamatCtrl.text.trim().isNotEmpty ? _alamatCtrl.text.trim() : null,
+    });
+
     if (!mounted) return;
     if (ok) {
-      Navigator.pushReplacementNamed(context, '/home');
+      Navigator.pop(context, true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data warga berhasil didaftarkan'), backgroundColor: AppColors.success),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(auth.errorMessage ?? 'Registrasi gagal'),
+        content: Text(warga.error ?? 'Gagal mendaftarkan data warga'),
         backgroundColor: AppColors.error,
       ));
     }
@@ -60,151 +94,117 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Buat Akun Baru'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Form(
-        key: _formKey,
-        child: Stepper(
-          currentStep: _currentStep,
-          onStepContinue: () {
-            if (_currentStep == 0) {
-              // Validasi step 1
-              if (_nameCtrl.text.isEmpty || _emailCtrl.text.isEmpty ||
-                  _passCtrl.text.isEmpty || _confirmCtrl.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Lengkapi data akun terlebih dahulu')));
-                return;
-              }
-              setState(() => _currentStep = 1);
-            } else {
-              _register();
-            }
-          },
-          onStepCancel: () {
-            if (_currentStep > 0) setState(() => _currentStep--);
-            else Navigator.pop(context);
-          },
-          controlsBuilder: (context, details) {
-            return Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Row(children: [
+      appBar: AppBar(title: const Text('Tambah Data Warga')),
+      body: Consumer<WargaProvider>(
+        builder: (_, warga, __) => Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              // Kategori
+              const Text('Kategori', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textSecondary)),
+              const SizedBox(height: 8),
+              Row(children: [
                 Expanded(
-                  child: Consumer<AuthProvider>(
-                    builder: (_, auth, __) => ElevatedButton(
-                      onPressed: auth.isLoading ? null : details.onStepContinue,
-                      child: auth.isLoading && _currentStep == 1
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : Text(_currentStep == 0 ? 'Lanjut' : 'Daftar Sekarang'),
-                    ),
+                  child: _kategoriChip('balita', 'Balita', Icons.child_care_rounded),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _kategoriChip('lansia', 'Lansia', Icons.elderly_rounded),
+                ),
+              ]),
+              const SizedBox(height: 20),
+
+              TextFormField(
+                controller: _nikCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'NIK (16 digit)', prefixIcon: Icon(Icons.badge_outlined, color: AppColors.primary)),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'NIK wajib diisi' : null,
+              ),
+              const SizedBox(height: 16),
+
+              InkWell(
+                onTap: _pickTanggalLahir,
+                child: InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Tanggal Lahir', prefixIcon: Icon(Icons.cake_outlined, color: AppColors.primary)),
+                  child: Text(
+                    _tanggalLahir == null
+                        ? 'Pilih tanggal'
+                        : '${_tanggalLahir!.day}/${_tanggalLahir!.month}/${_tanggalLahir!.year}',
+                    style: TextStyle(color: _tanggalLahir == null ? AppColors.textHint : AppColors.textPrimary),
                   ),
                 ),
-                if (_currentStep > 0) ...[
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: details.onStepCancel,
-                      child: const Text('Kembali'),
-                    ),
+              ),
+              const SizedBox(height: 16),
+
+              const Text('Jenis Kelamin', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textSecondary)),
+              Row(children: [
+                Expanded(
+                  child: RadioListTile<String>(
+                    value: 'L', groupValue: _jenisKelamin, dense: true, contentPadding: EdgeInsets.zero,
+                    title: const Text('Laki-laki', style: TextStyle(fontSize: 13)),
+                    onChanged: (v) => setState(() => _jenisKelamin = v!),
                   ),
-                ],
+                ),
+                Expanded(
+                  child: RadioListTile<String>(
+                    value: 'P', groupValue: _jenisKelamin, dense: true, contentPadding: EdgeInsets.zero,
+                    title: const Text('Perempuan', style: TextStyle(fontSize: 13)),
+                    onChanged: (v) => setState(() => _jenisKelamin = v!),
+                  ),
+                ),
               ]),
-            );
-          },
-          steps: [
-            Step(
-              title: const Text('Data Akun'),
-              subtitle: const Text('Email & password'),
-              isActive: _currentStep >= 0,
-              state: _currentStep > 0 ? StepState.complete : StepState.indexed,
-              content: Column(children: [
-                _buildField(_nameCtrl, 'Nama Lengkap', Icons.person_outline, required: true),
-                const SizedBox(height: 12),
-                _buildField(_emailCtrl, 'Email', Icons.email_outlined, type: TextInputType.emailAddress, required: true),
-                const SizedBox(height: 12),
+              const SizedBox(height: 8),
+
+              if (_kategori == 'balita') ...[
                 TextFormField(
-                  controller: _passCtrl,
-                  obscureText: _obscure,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock_outline, color: AppColors.primary),
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                      onPressed: () => setState(() => _obscure = !_obscure),
-                    ),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password wajib diisi';
-                    if (v.length < 6) return 'Minimal 6 karakter';
-                    return null;
-                  },
+                  controller: _namaOrangTuaCtrl,
+                  decoration: const InputDecoration(labelText: 'Nama Orang Tua/Wali', prefixIcon: Icon(Icons.people_outline, color: AppColors.primary)),
                 ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _confirmCtrl,
-                  obscureText: _obscure2,
-                  decoration: InputDecoration(
-                    labelText: 'Konfirmasi Password',
-                    prefixIcon: const Icon(Icons.lock_outline, color: AppColors.primary),
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscure2 ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                      onPressed: () => setState(() => _obscure2 = !_obscure2),
-                    ),
-                  ),
-                  validator: (v) {
-                    if (v != _passCtrl.text) return 'Password tidak sama';
-                    return null;
-                  },
+                const SizedBox(height: 16),
+              ],
+
+              TextFormField(
+                controller: _alamatCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(labelText: 'Alamat', prefixIcon: Icon(Icons.home_outlined, color: AppColors.primary)),
+              ),
+              const SizedBox(height: 28),
+
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: warga.isLoading ? null : _submit,
+                  child: warga.isLoading
+                      ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                      : const Text('Simpan'),
                 ),
-              ]),
-            ),
-            Step(
-              title: const Text('Data Pribadi'),
-              subtitle: const Text('Opsional'),
-              isActive: _currentStep >= 1,
-              content: Column(children: [
-                _buildField(_phoneCtrl, 'No. HP', Icons.phone_outlined, type: TextInputType.phone),
-                const SizedBox(height: 12),
-                _buildField(_nikCtrl, 'NIK (16 digit)', Icons.badge_outlined, type: TextInputType.number),
-                const SizedBox(height: 12),
-                _buildField(_addressCtrl, 'Alamat', Icons.home_outlined, maxLines: 2),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(child: _buildField(_rtRwCtrl, 'RT/RW', Icons.map_outlined)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildField(_kelurahanCtrl, 'Kelurahan', Icons.location_city_outlined)),
-                ]),
-              ]),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildField(
-    TextEditingController ctrl,
-    String label,
-    IconData icon, {
-    TextInputType type = TextInputType.text,
-    bool required = false,
-    int maxLines = 1,
-  }) {
-    return TextFormField(
-      controller: ctrl,
-      keyboardType: type,
-      maxLines: maxLines,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: AppColors.primary),
+  Widget _kategoriChip(String value, String label, IconData icon) {
+    final selected = _kategori == value;
+    return InkWell(
+      onTap: () => setState(() => _kategori = value),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: selected ? AppColors.primary : AppColors.border),
+        ),
+        child: Column(children: [
+          Icon(icon, color: selected ? Colors.white : AppColors.textSecondary),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(color: selected ? Colors.white : AppColors.textSecondary, fontWeight: FontWeight.w600, fontSize: 13)),
+        ]),
       ),
-      validator: required
-          ? (v) => (v == null || v.isEmpty) ? '$label wajib diisi' : null
-          : null,
     );
   }
 }
