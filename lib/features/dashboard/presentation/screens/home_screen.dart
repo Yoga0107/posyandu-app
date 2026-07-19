@@ -1391,6 +1391,10 @@ class _PemeriksaanBalitaFormScreenState
               decoration: const InputDecoration(
                   labelText: 'Tinggi Badan (cm)',
                   prefixIcon: Icon(Icons.height, color: AppColors.primary)),
+              // Wajib diisi — kolom tinggi_badan_cm bersifat NOT NULL di database,
+              // sebelumnya tidak ada validator sehingga insert bisa gagal kalau dikosongkan.
+              validator: (v) =>
+                  (v == null || v.isEmpty) ? 'Tinggi badan wajib diisi' : null,
             ),
             const SizedBox(height: 16),
             TextFormField(

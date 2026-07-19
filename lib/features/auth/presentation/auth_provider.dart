@@ -56,6 +56,36 @@ class AuthProvider extends ChangeNotifier {
     } finally { _setLoading(false); }
   }
 
+  /// Daftar akun sendiri (self sign-up). Role selalu 'warga' di backend,
+  /// akun langsung aktif & otomatis login setelah berhasil.
+  Future<bool> register({
+    required String nama,
+    required String noHp,
+    String? email,
+    required String password,
+  }) async {
+    _setLoading(true); _errorMessage = null;
+    try {
+      final response = await _api.post('/auth/register', data: {
+        'nama': nama,
+        'no_hp': noHp,
+        if (email != null && email.isNotEmpty) 'email': email,
+        'password': password,
+      });
+      final data = response.data['data'];
+      _user = UserModel.fromJson(data['user']);
+      _isAuthenticated = true;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(AppConstants.tokenKey,        data['accessToken']);
+      await prefs.setString(AppConstants.refreshTokenKey, data['refreshToken']);
+      await prefs.setString(AppConstants.userKey,         jsonEncode(_user!.toJson()));
+      await prefs.setString(AppConstants.roleKey,         _user!.role);
+      notifyListeners(); return true;
+    } catch (e) {
+      _errorMessage = parseApiError(e); notifyListeners(); return false;
+    } finally { _setLoading(false); }
+  }
+
   Future<void> logout() async {
     try { await _api.post('/auth/logout'); } catch (_) {}
     final prefs = await SharedPreferences.getInstance();

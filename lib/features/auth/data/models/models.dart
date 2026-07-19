@@ -184,6 +184,12 @@ class KunjunganModel {
   );
 }
 
+// Backend bisa mengembalikan kolom NUMERIC/DECIMAL sebagai String (perilaku
+// default driver Postgres). Helper ini aman untuk String maupun num, supaya
+// parsing tidak crash walau backend suatu saat lupa meng-cast ke Number.
+double _toDouble(dynamic v) => v is String ? double.parse(v) : (v as num).toDouble();
+int _toInt(dynamic v) => v is String ? int.parse(v) : (v as num).toInt();
+
 // ═══════════════════════════════════════
 //  PEMERIKSAAN BALITA MODEL
 // ═══════════════════════════════════════
@@ -210,16 +216,16 @@ class PemeriksaanBalitaModel {
     final a = j['analisis'];
     return PemeriksaanBalitaModel(
       id: p['id'], kunjunganId: p['kunjungan_id'],
-      beratBadanKg: (p['berat_badan_kg'] as num).toDouble(),
-      tinggiBadanCm: p['tinggi_badan_cm'] != null ? (p['tinggi_badan_cm'] as num).toDouble() : null,
-      lingkarKepalaCm: p['lingkar_kepala_cm'] != null ? (p['lingkar_kepala_cm'] as num).toDouble() : null,
+      beratBadanKg: _toDouble(p['berat_badan_kg']),
+      tinggiBadanCm: p['tinggi_badan_cm'] != null ? _toDouble(p['tinggi_badan_cm']) : null,
+      lingkarKepalaCm: p['lingkar_kepala_cm'] != null ? _toDouble(p['lingkar_kepala_cm']) : null,
       vitaminA: p['vitamin_a'] ?? false,
       jenisImunisasi: p['jenis_imunisasi'],
       statusGizi: p['status_gizi'],
       dicatatOleh: p['dicatat_oleh'],
       umurBulan: a != null ? a['umurBulan'] : null,
-      zScoreBBU: a != null && a['zScoreBBU'] != null ? (a['zScoreBBU'] as num).toDouble() : null,
-      zScoreTBU: a != null && a['zScoreTBU'] != null ? (a['zScoreTBU'] as num).toDouble() : null,
+      zScoreBBU: a != null && a['zScoreBBU'] != null ? _toDouble(a['zScoreBBU']) : null,
+      zScoreTBU: a != null && a['zScoreTBU'] != null ? _toDouble(a['zScoreTBU']) : null,
       labelStatus: a != null ? a['label'] : null,
     );
   }
@@ -246,9 +252,9 @@ class PemeriksaanPosbinduModel {
     final a = j['analisis'];
     return PemeriksaanPosbinduModel(
       id: p['id'], kunjunganId: p['kunjungan_id'],
-      beratBadanKg: (p['berat_badan_kg'] as num).toDouble(),
-      tensiSistol: (p['tensi_sistol'] as num).toInt(),
-      tensiDiastol: (p['tensi_diastol'] as num).toInt(),
+      beratBadanKg: _toDouble(p['berat_badan_kg']),
+      tensiSistol: _toInt(p['tensi_sistol']),
+      tensiDiastol: _toInt(p['tensi_diastol']),
       keluhan: p['keluhan'], faktorRisikoPtm: p['faktor_risiko_ptm'],
       statusTensi: p['status_tensi'],
       labelStatus: a != null ? a['label'] : null,

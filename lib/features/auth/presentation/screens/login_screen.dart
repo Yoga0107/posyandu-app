@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../auth_provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/app_router.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -130,7 +131,18 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   ),
                 ),
 
-                const SizedBox(height: 28),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Belum punya akun?', style: TextStyle(color: Color.fromARGB(179, 12, 11, 11), fontSize: 13)),
+                    TextButton(
+                      onPressed: () => Navigator.pushNamed(context, AppRouter.registerAccount),
+                      child: const Text('Daftar', style: TextStyle(color: Color.fromARGB(255, 9, 8, 8), fontWeight: FontWeight.w700, fontSize: 13)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 // Role info chips
                 Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                   _roleChip(Icons.admin_panel_settings_rounded, 'RW', AppColors.primary),
