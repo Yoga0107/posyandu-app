@@ -73,6 +73,19 @@ class WargaProvider extends ChangeNotifier {
     } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
   }
 
+  Future<bool> update(String id, Map<String, dynamic> data) async {
+    try {
+      await _api.put('/warga/$id', data: data);
+      await fetchById(id); return true;
+    } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
+  }
+
+  Future<bool> delete(String id) async {
+    try {
+      await _api.delete('/warga/$id'); return true;
+    } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
+  }
+
   void clearError() { _error = null; notifyListeners(); }
 }
 
@@ -125,6 +138,13 @@ class JadwalProvider extends ChangeNotifier {
     } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
   }
 
+  Future<bool> update(String id, Map<String, dynamic> data) async {
+    try {
+      await _api.put('/jadwal/$id', data: data);
+      await fetchById(id); await fetchAll(); return true;
+    } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
+  }
+
   Future<bool> addMenu(String jadwalId, String namaMenu, {String? deskripsi}) async {
     try {
       await _api.post('/jadwal/$jadwalId/menu', data: {'nama_menu': namaMenu, 'deskripsi': deskripsi});
@@ -135,6 +155,52 @@ class JadwalProvider extends ChangeNotifier {
   Future<bool> delete(String id) async {
     try { await _api.delete('/jadwal/$id'); await fetchAll(); return true; }
     catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
+  }
+
+  void clearError() { _error = null; notifyListeners(); }
+}
+
+// ═══════════════════════════════════════════════════════
+//  USER MANAGEMENT PROVIDER (RW: kelola akun kader/warga)
+// ═══════════════════════════════════════════════════════
+class UserManagementProvider extends ChangeNotifier {
+  final _api = ApiClient.instance;
+  List<UserModel> _list = [];
+  PaginationModel? _pagination;
+  bool _isLoading = false;
+  String? _error;
+
+  List<UserModel> get list       => _list;
+  PaginationModel? get pagination => _pagination;
+  bool get isLoading             => _isLoading;
+  String? get error              => _error;
+
+  Future<void> fetchAll({String? role, String? search, int page = 1}) async {
+    _isLoading = true; notifyListeners();
+    try {
+      final r = await _api.get('/users', params: {
+        'page': page, 'limit': AppConstants.defaultPageSize,
+        if (role != null) 'role': role,
+        if (search != null && search.isNotEmpty) 'search': search,
+      });
+      _list = (r.data['data'] as List).map((e) => UserModel.fromJson(e)).toList();
+      if (r.data['pagination'] != null) _pagination = PaginationModel.fromJson(r.data['pagination']);
+    } catch (e) { _error = parseApiError(e); }
+    _isLoading = false; notifyListeners();
+  }
+
+  Future<bool> create(Map<String, dynamic> data) async {
+    try {
+      await _api.post('/users', data: data);
+      await fetchAll(); return true;
+    } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
+  }
+
+  Future<bool> toggle(String id) async {
+    try {
+      await _api.patch('/users/$id/toggle');
+      await fetchAll(); return true;
+    } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
   }
 
   void clearError() { _error = null; notifyListeners(); }

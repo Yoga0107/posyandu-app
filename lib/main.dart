@@ -34,6 +34,7 @@ class PosyanduApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => JadwalProvider()),
         ChangeNotifierProvider(create: (_) => KunjunganProvider()),
         ChangeNotifierProvider(create: (_) => PemeriksaanProvider()),
+        ChangeNotifierProvider(create: (_) => UserManagementProvider()),
         ChangeNotifierProvider(create: (_) => DashboardProvider()),
         ChangeNotifierProvider(create: (_) => LaporanProvider()),
       ],
