@@ -26,6 +26,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey          = GlobalKey<FormState>();
+  final _namaCtrl         = TextEditingController();
   final _nikCtrl          = TextEditingController();
   final _alamatCtrl       = TextEditingController();
   final _namaOrangTuaCtrl = TextEditingController();
@@ -36,6 +37,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
+    _namaCtrl.dispose();
     _nikCtrl.dispose();
     _alamatCtrl.dispose();
     _namaOrangTuaCtrl.dispose();
@@ -68,6 +70,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         '${_tanggalLahir!.year.toString().padLeft(4, '0')}-${_tanggalLahir!.month.toString().padLeft(2, '0')}-${_tanggalLahir!.day.toString().padLeft(2, '0')}';
 
     final ok = await warga.create({
+      'nama': _namaCtrl.text.trim(),
       'nik': _nikCtrl.text.trim(),
       'tanggal_lahir': tglStr,
       'jenis_kelamin': _jenisKelamin,
@@ -114,6 +117,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ]),
               const SizedBox(height: 20),
+
+              TextFormField(
+                controller: _namaCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: _kategori == 'balita' ? 'Nama Balita' : 'Nama Lansia',
+                  prefixIcon: const Icon(Icons.person_outline, color: AppColors.primary),
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? '${_kategori == 'balita' ? 'Nama balita' : 'Nama lansia'} wajib diisi'
+                    : null,
+              ),
+              const SizedBox(height: 16),
 
               TextFormField(
                 controller: _nikCtrl,

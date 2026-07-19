@@ -33,6 +33,7 @@ class UserModel {
 class WargaModel {
   final String id;
   final String userId;
+  final String? nama; // nama balita/lansia itu sendiri (bisa beda dari nama akun warga)
   final String nik;
   final String? alamat;
   final String tanggalLahir;
@@ -47,16 +48,19 @@ class WargaModel {
   final double? umurTahun;
   final String? createdAt;
 
-  WargaModel({required this.id, required this.userId, required this.nik, this.alamat, required this.tanggalLahir, required this.jenisKelamin, required this.kategori, this.namaOrangTua, this.namaUser, this.noHp, this.namaVerifikator, this.verifiedAt, this.umurBulan, this.umurTahun, this.createdAt});
+  WargaModel({required this.id, required this.userId, this.nama, required this.nik, this.alamat, required this.tanggalLahir, required this.jenisKelamin, required this.kategori, this.namaOrangTua, this.namaUser, this.noHp, this.namaVerifikator, this.verifiedAt, this.umurBulan, this.umurTahun, this.createdAt});
 
   bool get sudahVerifikasi => verifiedAt != null;
   bool get isBalita  => kategori == 'balita';
   bool get isLansia  => kategori == 'lansia';
   String get jenisKelaminLabel => jenisKelamin == 'L' ? 'Laki-laki' : 'Perempuan';
   String get kategoriLabel => isBalita ? 'Balita' : 'Lansia';
+  // Nama yang ditampilkan: pakai nama balita/lansia; fallback ke nama akun
+  // hanya untuk data lama (sebelum kolom `nama` ada) yang belum diisi.
+  String get namaTampilan => (nama != null && nama!.trim().isNotEmpty) ? nama! : (namaUser ?? '-');
 
   factory WargaModel.fromJson(Map<String, dynamic> j) => WargaModel(
-    id: j['id'], userId: j['user_id'], nik: j['nik'],
+    id: j['id'], userId: j['user_id'], nama: j['nama'], nik: j['nik'],
     alamat: j['alamat'], tanggalLahir: j['tanggal_lahir'],
     jenisKelamin: j['jenis_kelamin'], kategori: j['kategori'],
     namaOrangTua: j['nama_orang_tua'], namaUser: j['nama_user'],

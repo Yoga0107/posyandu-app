@@ -10,16 +10,17 @@
 //  yang sudah dicocokkan dengan endpoint backend yang aktif.
 // ═══════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
+import 'package:posyandu_app/features/auth/presentation/screens/jadwal_kalender_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../auth/presentation/auth_provider.dart';
 import '../../../auth/data/models/models.dart';
 import '../../../auth/presentation/screens/register_screen.dart';
-import 'user_management_screen.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_widgets.dart';
 import '../../../../core/utils/providers.dart';
 import '../../../../core/constants/app_constants.dart';
+
 
 String _fmtTanggal(String? iso) {
   if (iso == null || iso.isEmpty) return '-';
@@ -342,15 +343,10 @@ class _WargaCard extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () async {
-          final changed = await Navigator.push<bool>(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => WargaDetailScreen(wargaId: warga.id)));
-          if (changed == true && context.mounted) {
-            context.read<WargaProvider>().fetchAll();
-          }
-        },
+        onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => WargaDetailScreen(wargaId: warga.id))),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(children: [
@@ -368,13 +364,21 @@ class _WargaCard extends StatelessWidget {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(warga.namaUser ?? '-',
+                    Text(warga.namaTampilan,
                         style: const TextStyle(
                             fontWeight: FontWeight.w700, fontSize: 13)),
                     const SizedBox(height: 2),
                     Text('NIK: ${warga.nik}',
                         style: const TextStyle(
                             fontSize: 11, color: AppColors.textSecondary)),
+                    if (warga.namaUser != null) ...[
+                      const SizedBox(height: 2),
+                      Text('Akun warga: ${warga.namaUser}',
+                          style: const TextStyle(
+                              fontSize: 11, color: AppColors.textHint),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ],
                     const SizedBox(height: 4),
                     Row(children: [
                       Text(warga.kategoriLabel,
@@ -425,227 +429,11 @@ class _WargaDetailScreenState extends State<WargaDetailScreen> {
     ));
   }
 
-  Future<void> _editSheet(WargaModel w, bool isAdmin) async {
-    final formKey = GlobalKey<FormState>();
-    final nikCtrl = TextEditingController(text: w.nik);
-    final alamatCtrl = TextEditingController(text: w.alamat ?? '');
-    final namaOrangTuaCtrl = TextEditingController(text: w.namaOrangTua ?? '');
-    DateTime? tanggalLahir = DateTime.tryParse(w.tanggalLahir);
-    String jenisKelamin = w.jenisKelamin;
-    String kategori = w.kategori;
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(
-          left: 20, right: 20, top: 20,
-          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-        ),
-        child: StatefulBuilder(
-          builder: (sheetContext, setSheetState) => Form(
-            key: formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Edit Data Warga',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
-                  const SizedBox(height: 16),
-                  // NIK & kategori hanya boleh diubah kader/RW (sesuai warga.controller.js update())
-                  if (isAdmin) ...[
-                    TextFormField(
-                      controller: nikCtrl,
-                      decoration: const InputDecoration(labelText: 'NIK'),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'NIK wajib diisi' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(children: [
-                      Expanded(
-                        child: ChoiceChip(
-                          label: const Text('Balita'),
-                          selected: kategori == 'balita',
-                          onSelected: (_) => setSheetState(() => kategori = 'balita'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ChoiceChip(
-                          label: const Text('Lansia'),
-                          selected: kategori == 'lansia',
-                          onSelected: (_) => setSheetState(() => kategori = 'lansia'),
-                        ),
-                      ),
-                    ]),
-                    const SizedBox(height: 12),
-                  ],
-                  InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: sheetContext,
-                        initialDate: tanggalLahir ?? DateTime.now(),
-                        firstDate: DateTime(DateTime.now().year - 100),
-                        lastDate: DateTime.now(),
-                      );
-                      if (picked != null) setSheetState(() => tanggalLahir = picked);
-                    },
-                    child: InputDecorator(
-                      decoration: const InputDecoration(labelText: 'Tanggal Lahir'),
-                      child: Text(tanggalLahir == null
-                          ? 'Pilih tanggal'
-                          : '${tanggalLahir!.day}/${tanggalLahir!.month}/${tanggalLahir!.year}'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(
-                      child: RadioListTile<String>(
-                        value: 'L', groupValue: jenisKelamin, dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Laki-laki', style: TextStyle(fontSize: 13)),
-                        onChanged: (v) => setSheetState(() => jenisKelamin = v!),
-                      ),
-                    ),
-                    Expanded(
-                      child: RadioListTile<String>(
-                        value: 'P', groupValue: jenisKelamin, dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Perempuan', style: TextStyle(fontSize: 13)),
-                        onChanged: (v) => setSheetState(() => jenisKelamin = v!),
-                      ),
-                    ),
-                  ]),
-                  const SizedBox(height: 4),
-                  TextFormField(
-                    controller: namaOrangTuaCtrl,
-                    decoration:
-                        const InputDecoration(labelText: 'Nama Orang Tua/Wali (opsional)'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: alamatCtrl,
-                    maxLines: 2,
-                    decoration: const InputDecoration(labelText: 'Alamat (opsional)'),
-                  ),
-                  const SizedBox(height: 20),
-                  Consumer<WargaProvider>(
-                    builder: (_, provider, __) => SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: provider.isLoading
-                            ? null
-                            : () async {
-                                if (!formKey.currentState!.validate()) return;
-                                final tglStr = tanggalLahir != null
-                                    ? '${tanggalLahir!.year.toString().padLeft(4, '0')}-${tanggalLahir!.month.toString().padLeft(2, '0')}-${tanggalLahir!.day.toString().padLeft(2, '0')}'
-                                    : w.tanggalLahir;
-                                final data = {
-                                  'alamat': alamatCtrl.text.trim().isNotEmpty
-                                      ? alamatCtrl.text.trim()
-                                      : null,
-                                  'tanggal_lahir': tglStr,
-                                  'jenis_kelamin': jenisKelamin,
-                                  'nama_orang_tua': namaOrangTuaCtrl.text.trim().isNotEmpty
-                                      ? namaOrangTuaCtrl.text.trim()
-                                      : null,
-                                  if (isAdmin) 'nik': nikCtrl.text.trim(),
-                                  if (isAdmin) 'kategori': kategori,
-                                };
-                                final ok = await provider.update(w.id, data);
-                                if (!sheetContext.mounted) return;
-                                if (ok) {
-                                  Navigator.pop(sheetContext);
-                                } else {
-                                  ScaffoldMessenger.of(sheetContext).showSnackBar(SnackBar(
-                                    content:
-                                        Text(provider.error ?? 'Gagal memperbarui data'),
-                                    backgroundColor: AppColors.error,
-                                  ));
-                                }
-                              },
-                        child: provider.isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2.5))
-                            : const Text('Simpan Perubahan'),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _deleteConfirm(WargaModel w) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Hapus Data Warga'),
-        content: Text(
-            'Yakin ingin menghapus data ${w.namaUser ?? w.nik}? Seluruh riwayat kunjungan & pemeriksaan warga ini juga akan ikut terhapus permanen.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Batal')),
-          TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Hapus', style: TextStyle(color: AppColors.error))),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-    final provider = context.read<WargaProvider>();
-    final ok = await provider.delete(w.id);
-    if (!mounted) return;
-    if (ok) {
-      Navigator.pop(context, true);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(provider.error ?? 'Gagal menghapus data'),
-        backgroundColor: AppColors.error,
-      ));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isAdmin = context.watch<AuthProvider>().isAdminLevel;
-    final isRW = context.watch<AuthProvider>().isRW;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detail Warga'),
-        actions: [
-          if (isAdmin)
-            Consumer<WargaProvider>(
-              builder: (_, provider, __) => IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                tooltip: 'Edit Data',
-                onPressed: provider.selected == null
-                    ? null
-                    : () => _editSheet(provider.selected!, isAdmin),
-              ),
-            ),
-          if (isRW)
-            Consumer<WargaProvider>(
-              builder: (_, provider, __) => IconButton(
-                icon: const Icon(Icons.delete_outline),
-                tooltip: 'Hapus Data',
-                onPressed: provider.selected == null
-                    ? null
-                    : () => _deleteConfirm(provider.selected!),
-              ),
-            ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Detail Warga')),
       body: Consumer<WargaProvider>(
         builder: (_, provider, __) {
           if (provider.isLoading && provider.selected == null) {
@@ -685,7 +473,7 @@ class _WargaDetailScreenState extends State<WargaDetailScreen> {
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(w.namaUser ?? '-',
+                                Text(w.namaTampilan,
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w700,
                                         fontSize: 16)),
@@ -704,6 +492,7 @@ class _WargaDetailScreenState extends State<WargaDetailScreen> {
                         _row('Orang Tua/Wali', w.namaOrangTua!),
                       if (w.alamat != null) _row('Alamat', w.alamat!),
                       if (w.noHp != null) _row('No. HP', w.noHp!),
+                      if (w.namaUser != null) _row('Akun Warga', w.namaUser!),
                       _row(
                           'Status',
                           w.sudahVerifikasi
@@ -805,7 +594,23 @@ class _JadwalTabState extends State<_JadwalTab> {
   Widget build(BuildContext context) {
     final isAdmin = context.watch<AuthProvider>().isAdminLevel;
     return Scaffold(
-      appBar: AppBar(title: const Text('Jadwal Kegiatan')),
+      appBar: AppBar(
+        title: const Text('Jadwal Kegiatan'),
+        actions: [
+          IconButton(
+            tooltip: 'Lihat Kalender',
+            icon: const Icon(Icons.calendar_today_rounded),
+            onPressed: () async {
+              await Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const JadwalKalenderScreen()));
+              // JadwalProvider dipakai bersama (shared state) — kembalikan
+              // ke filter tab ini (mis. "Mendatang"/jenis) setelah kembali
+              // dari kalender, karena kalender memuat semua data tanpa filter.
+              if (mounted) _load();
+            },
+          ),
+        ],
+      ),
       floatingActionButton: isAdmin
           ? FloatingActionButton(
               onPressed: () async {
@@ -885,15 +690,10 @@ class _JadwalCard extends StatelessWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () async {
-          final changed = await Navigator.push<bool>(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => JadwalDetailScreen(jadwalId: jadwal.id)));
-          if (changed == true && context.mounted) {
-            context.read<JadwalProvider>().fetchAll();
-          }
-        },
+        onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => JadwalDetailScreen(jadwalId: jadwal.id))),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(children: [
@@ -944,8 +744,7 @@ class _JadwalCard extends StatelessWidget {
 }
 
 class JadwalFormScreen extends StatefulWidget {
-  final JadwalModel? existing;
-  const JadwalFormScreen({super.key, this.existing});
+  const JadwalFormScreen({super.key});
   @override
   State<JadwalFormScreen> createState() => _JadwalFormScreenState();
 }
@@ -959,22 +758,6 @@ class _JadwalFormScreenState extends State<JadwalFormScreen> {
   TimeOfDay? _jam;
   String _jenis = 'posyandu';
   final List<String> _menuList = [];
-
-  @override
-  void initState() {
-    super.initState();
-    final e = widget.existing;
-    if (e != null) {
-      _lokasiCtrl.text = e.lokasi;
-      _keteranganCtrl.text = e.keterangan ?? '';
-      _jenis = e.jenisKegiatan;
-      _tanggal = DateTime.tryParse(e.tanggal);
-      final parts = e.jam.split(':');
-      if (parts.length >= 2) {
-        _jam = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
-      }
-    }
-  }
 
   @override
   void dispose() {
@@ -1014,7 +797,7 @@ class _JadwalFormScreenState extends State<JadwalFormScreen> {
         '${_jam!.hour.toString().padLeft(2, '0')}:${_jam!.minute.toString().padLeft(2, '0')}';
 
     final provider = context.read<JadwalProvider>();
-    final data = {
+    final ok = await provider.create({
       'tanggal': tglStr,
       'jam': jamStr,
       'lokasi': _lokasiCtrl.text.trim(),
@@ -1022,20 +805,16 @@ class _JadwalFormScreenState extends State<JadwalFormScreen> {
       'keterangan': _keteranganCtrl.text.trim().isNotEmpty
           ? _keteranganCtrl.text.trim()
           : null,
-      if (widget.existing == null && _menuList.isNotEmpty)
+      if (_menuList.isNotEmpty)
         'menu_pmt': _menuList.map((m) => {'nama_menu': m}).toList(),
-    };
-    final ok = widget.existing != null
-        ? await provider.update(widget.existing!.id, data)
-        : await provider.create(data);
+    });
 
     if (!mounted) return;
     if (ok) {
       Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(provider.error ??
-              (widget.existing != null ? 'Gagal memperbarui jadwal' : 'Gagal membuat jadwal')),
+          content: Text(provider.error ?? 'Gagal membuat jadwal'),
           backgroundColor: AppColors.error));
     }
   }
@@ -1043,7 +822,7 @@ class _JadwalFormScreenState extends State<JadwalFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.existing != null ? 'Edit Jadwal' : 'Buat Jadwal Baru')),
+      appBar: AppBar(title: const Text('Buat Jadwal Baru')),
       body: Consumer<JadwalProvider>(
         builder: (_, provider, __) => Form(
           key: _formKey,
@@ -1100,41 +879,39 @@ class _JadwalFormScreenState extends State<JadwalFormScreen> {
                       Icon(Icons.notes_outlined, color: AppColors.primary)),
             ),
             const SizedBox(height: 20),
-            if (widget.existing == null) ...[
-              const Text('Menu PMT (opsional)',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                      color: AppColors.textSecondary)),
-              const SizedBox(height: 8),
-              Row(children: [
-                Expanded(
-                    child: TextField(
-                        controller: _menuCtrl,
-                        decoration: const InputDecoration(
-                            hintText: 'Nama menu...', isDense: true))),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.add_circle, color: AppColors.primary),
-                  onPressed: () {
-                    if (_menuCtrl.text.trim().isEmpty) return;
-                    setState(() {
-                      _menuList.add(_menuCtrl.text.trim());
-                      _menuCtrl.clear();
-                    });
-                  },
-                ),
-              ]),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: _menuList
-                    .map((m) => Chip(
-                        label: Text(m),
-                        onDeleted: () => setState(() => _menuList.remove(m))))
-                    .toList(),
+            const Text('Menu PMT (opsional)',
+                style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.textSecondary)),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                  child: TextField(
+                      controller: _menuCtrl,
+                      decoration: const InputDecoration(
+                          hintText: 'Nama menu...', isDense: true))),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.add_circle, color: AppColors.primary),
+                onPressed: () {
+                  if (_menuCtrl.text.trim().isEmpty) return;
+                  setState(() {
+                    _menuList.add(_menuCtrl.text.trim());
+                    _menuCtrl.clear();
+                  });
+                },
               ),
-            ],
+            ]),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: _menuList
+                  .map((m) => Chip(
+                      label: Text(m),
+                      onDeleted: () => setState(() => _menuList.remove(m))))
+                  .toList(),
+            ),
             const SizedBox(height: 28),
             SizedBox(
               height: 52,
@@ -1146,7 +923,7 @@ class _JadwalFormScreenState extends State<JadwalFormScreen> {
                         height: 22,
                         child: CircularProgressIndicator(
                             color: Colors.white, strokeWidth: 2.5))
-                    : Text(widget.existing != null ? 'Simpan Perubahan' : 'Simpan Jadwal'),
+                    : const Text('Simpan Jadwal'),
               ),
             ),
           ]),
@@ -1246,66 +1023,8 @@ class _JadwalDetailScreenState extends State<JadwalDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final isAdmin = context.watch<AuthProvider>().isAdminLevel;
-    final isRW = context.watch<AuthProvider>().isRW;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detail Jadwal'),
-        actions: [
-          if (isAdmin)
-            Consumer<JadwalProvider>(
-              builder: (_, jp, __) => IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                tooltip: 'Edit Jadwal',
-                onPressed: jp.selected == null
-                    ? null
-                    : () async {
-                        final updated = await Navigator.push<bool>(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => JadwalFormScreen(existing: jp.selected)),
-                        );
-                        if (updated == true && mounted) _load();
-                      },
-              ),
-            ),
-          if (isRW)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Hapus Jadwal',
-              onPressed: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text('Hapus Jadwal'),
-                    content: const Text(
-                        'Yakin ingin menghapus jadwal ini? Jadwal yang sudah memiliki kunjungan tidak bisa dihapus.'),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Batal')),
-                      TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Hapus',
-                              style: TextStyle(color: AppColors.error))),
-                    ],
-                  ),
-                );
-                if (confirm != true) return;
-                final provider = context.read<JadwalProvider>();
-                final ok = await provider.delete(widget.jadwalId);
-                if (!mounted) return;
-                if (ok) {
-                  Navigator.pop(context, true);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text(provider.error ?? 'Gagal menghapus jadwal'),
-                    backgroundColor: AppColors.error,
-                  ));
-                }
-              },
-            ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Detail Jadwal')),
       floatingActionButton: isAdmin
           ? FloatingActionButton.extended(
               onPressed: () async {
@@ -1579,8 +1298,9 @@ class _PilihWargaSheet extends StatelessWidget {
                           w.isBalita ? Icons.child_care_rounded : Icons.elderly,
                           color: AppColors.primary),
                     ),
-                    title: Text(w.namaUser ?? '-'),
-                    subtitle: Text('NIK: ${w.nik}'),
+                    title: Text(w.namaTampilan),
+                    subtitle: Text(
+                        'NIK: ${w.nik}${w.namaUser != null ? ' · Akun: ${w.namaUser}' : ''}'),
                     onTap: () => Navigator.pop(context, w),
                   );
                 },
@@ -2037,16 +1757,6 @@ class _ProfileTab extends StatelessWidget {
                     const Icon(Icons.lock_outline, color: AppColors.primary),
                 title: const Text('Ubah Password'),
                 onTap: () => _changePassword(context)),
-            if (user?.isRW == true) ...[
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.manage_accounts_rounded,
-                    color: AppColors.primary),
-                title: const Text('Kelola Akun Kader/Warga'),
-                onTap: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const UserManagementScreen())),
-              ),
-            ],
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.logout_rounded, color: AppColors.error),
@@ -2126,7 +1836,20 @@ class _WargaHomeTabState extends State<_WargaHomeTab> {
                     provider.list.map((w) => _WargaCard(warga: w)).toList());
           }),
           const SizedBox(height: 16),
-          const SectionHeader(title: 'Jadwal Mendatang'),
+          SectionHeader(
+            title: 'Jadwal Mendatang',
+            actionLabel: 'Lihat Kalender',
+            onAction: () async {
+              await Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const JadwalKalenderScreen()));
+              // JadwalProvider dipakai bersama (shared state) — kalender
+              // memuat semua jadwal tanpa filter, jadi kembalikan lagi
+              // ke daftar "mendatang" supaya tab ini tetap konsisten.
+              if (context.mounted) {
+                context.read<JadwalProvider>().fetchAll(upcoming: true);
+              }
+            },
+          ),
           Consumer<JadwalProvider>(builder: (_, provider, __) {
             if (provider.isLoading)
               return const ShimmerList(count: 2, itemHeight: 90);
