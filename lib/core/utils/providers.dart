@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../features/auth/data/models/models.dart';
 import '../api/api_client.dart';
 import '../constants/app_constants.dart';
+import 'file_saver/file_saver.dart' as file_saver;
 
 // ═══════════════════════════════════════════════════════
 //  WARGA PROVIDER
@@ -73,19 +74,6 @@ class WargaProvider extends ChangeNotifier {
     } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
   }
 
-  Future<bool> update(String id, Map<String, dynamic> data) async {
-    try {
-      await _api.put('/warga/$id', data: data);
-      await fetchById(id); return true;
-    } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
-  }
-
-  Future<bool> delete(String id) async {
-    try {
-      await _api.delete('/warga/$id'); return true;
-    } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
-  }
-
   void clearError() { _error = null; notifyListeners(); }
 }
 
@@ -138,13 +126,6 @@ class JadwalProvider extends ChangeNotifier {
     } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
   }
 
-  Future<bool> update(String id, Map<String, dynamic> data) async {
-    try {
-      await _api.put('/jadwal/$id', data: data);
-      await fetchById(id); await fetchAll(); return true;
-    } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
-  }
-
   Future<bool> addMenu(String jadwalId, String namaMenu, {String? deskripsi}) async {
     try {
       await _api.post('/jadwal/$jadwalId/menu', data: {'nama_menu': namaMenu, 'deskripsi': deskripsi});
@@ -155,52 +136,6 @@ class JadwalProvider extends ChangeNotifier {
   Future<bool> delete(String id) async {
     try { await _api.delete('/jadwal/$id'); await fetchAll(); return true; }
     catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
-  }
-
-  void clearError() { _error = null; notifyListeners(); }
-}
-
-// ═══════════════════════════════════════════════════════
-//  USER MANAGEMENT PROVIDER (RW: kelola akun kader/warga)
-// ═══════════════════════════════════════════════════════
-class UserManagementProvider extends ChangeNotifier {
-  final _api = ApiClient.instance;
-  List<UserModel> _list = [];
-  PaginationModel? _pagination;
-  bool _isLoading = false;
-  String? _error;
-
-  List<UserModel> get list       => _list;
-  PaginationModel? get pagination => _pagination;
-  bool get isLoading             => _isLoading;
-  String? get error              => _error;
-
-  Future<void> fetchAll({String? role, String? search, int page = 1}) async {
-    _isLoading = true; notifyListeners();
-    try {
-      final r = await _api.get('/users', params: {
-        'page': page, 'limit': AppConstants.defaultPageSize,
-        if (role != null) 'role': role,
-        if (search != null && search.isNotEmpty) 'search': search,
-      });
-      _list = (r.data['data'] as List).map((e) => UserModel.fromJson(e)).toList();
-      if (r.data['pagination'] != null) _pagination = PaginationModel.fromJson(r.data['pagination']);
-    } catch (e) { _error = parseApiError(e); }
-    _isLoading = false; notifyListeners();
-  }
-
-  Future<bool> create(Map<String, dynamic> data) async {
-    try {
-      await _api.post('/users', data: data);
-      await fetchAll(); return true;
-    } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
-  }
-
-  Future<bool> toggle(String id) async {
-    try {
-      await _api.patch('/users/$id/toggle');
-      await fetchAll(); return true;
-    } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
   }
 
   void clearError() { _error = null; notifyListeners(); }
@@ -326,16 +261,86 @@ class DashboardProvider extends ChangeNotifier {
 }
 
 // ═══════════════════════════════════════════════════════
-//  LAPORAN PROVIDER
+//  USER MANAGEMENT PROVIDER (khusus RW)
+//  Kelola akun kader & warga: GET/POST /users, PATCH /users/:id/toggle
 // ═══════════════════════════════════════════════════════
+class UserManagementProvider extends ChangeNotifier {
+  final _api = ApiClient.instance;
+  List<UserModel> _list = [];
+  PaginationModel? _pagination;
+  bool _isLoading = false;
+  bool _isSubmitting = false;
+  String? _error;
+
+  List<UserModel> get list        => _list;
+  PaginationModel? get pagination => _pagination;
+  bool get isLoading              => _isLoading;
+  bool get isSubmitting           => _isSubmitting;
+  String? get error               => _error;
+
+  Future<void> fetchAll({int page = 1, String? search, String? role}) async {
+    _isLoading = true; notifyListeners();
+    try {
+      final r = await _api.get('/users', params: {
+        'page': page, 'limit': AppConstants.defaultPageSize,
+        if (search != null && search.isNotEmpty) 'search': search,
+        if (role != null) 'role': role,
+      });
+      _list = (r.data['data'] as List).map((e) => UserModel.fromJson(e)).toList();
+      if (r.data['pagination'] != null) _pagination = PaginationModel.fromJson(r.data['pagination']);
+    } catch (e) { _error = parseApiError(e); }
+    _isLoading = false; notifyListeners();
+  }
+
+  // role wajib 'kader' atau 'warga' (RW tidak membuat akun RW baru dari sini)
+  Future<bool> createUser({
+    required String nama,
+    required String noHp,
+    String? email,
+    String? password,
+    required String role,
+  }) async {
+    _isSubmitting = true; _error = null; notifyListeners();
+    try {
+      await _api.post('/users', data: {
+        'nama': nama,
+        'no_hp': noHp,
+        if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
+        if (password != null && password.trim().isNotEmpty) 'password': password.trim(),
+        'role': role,
+      });
+      await fetchAll();
+      _isSubmitting = false; notifyListeners();
+      return true;
+    } catch (e) {
+      _error = parseApiError(e);
+      _isSubmitting = false; notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> toggleActive(String id) async {
+    try {
+      await _api.patch('/users/$id/toggle');
+      await fetchAll();
+      return true;
+    } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
+  }
+
+  void clearError() { _error = null; notifyListeners(); }
+}
+
+
 class LaporanProvider extends ChangeNotifier {
   final _api = ApiClient.instance;
   Map<String, dynamic>? _data;
   bool _isLoading = false;
+  bool _isExporting = false;
   String? _error;
 
   Map<String, dynamic>? get data  => _data;
   bool get isLoading              => _isLoading;
+  bool get isExporting            => _isExporting;
   String? get error               => _error;
 
   Future<void> fetchBulanan(int bulan, int tahun) async {
@@ -345,6 +350,31 @@ class LaporanProvider extends ChangeNotifier {
       _data = r.data['data'];
     } catch (e) { _error = parseApiError(e); }
     _isLoading = false; notifyListeners();
+  }
+
+  // Export rekap bulanan (dari VIEW v_rekap_bulanan) ke file .xlsx.
+  // `tahun = null` akan mengexport seluruh data yang ada di view (semua bulan).
+  // Di mobile: file disimpan ke folder aplikasi (path dikembalikan, bisa
+  // dibuka dengan open_filex). Di web: browser langsung memicu download,
+  // path_provider TIDAK dipakai sama sekali karena tidak didukung di web.
+  // Mengembalikan path/nama file jika berhasil, null jika gagal (lihat `error`).
+  Future<String?> exportExcel({int? tahun}) async {
+    _isExporting = true; _error = null; notifyListeners();
+    String? savedPath;
+    try {
+      final response = await _api.downloadBytes(
+        '/laporan/export/excel',
+        params: tahun != null ? {'tahun': tahun} : null,
+      );
+      final bytes = response.data!;
+      final suffix = tahun != null ? '_$tahun' : '_semua';
+      final filename = 'rekap_bulanan$suffix.xlsx';
+      savedPath = await file_saver.saveBytesAndGetPath(bytes, filename);
+    } catch (e) {
+      _error = parseApiError(e);
+    }
+    _isExporting = false; notifyListeners();
+    return savedPath;
   }
 
   void clearError() { _error = null; notifyListeners(); }

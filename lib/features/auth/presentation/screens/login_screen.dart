@@ -74,8 +74,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   child: const Icon(Icons.local_hospital_rounded, size: 54, color: AppColors.primary),
                 ),
                 const SizedBox(height: 14),
-                const Text('POS Yandu', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white)),
-                const Text('Posyandu & Posbindu RW 05', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                const Text('PosKita', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Colors.white)),
+                const Text('Posyandu & Posbindu', style: TextStyle(color: Colors.white70, fontSize: 13)),
                 const SizedBox(height: 36),
 
                 // Form card

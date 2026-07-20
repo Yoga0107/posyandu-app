@@ -38,6 +38,8 @@ dependencies:
   url_launcher: ^6.2.1
   flutter_html: ^3.0.0-beta.2
   timeago: ^3.6.0
+  path_provider: ^2.1.1
+  open_filex: ^4.5.0
 
 dev_dependencies:
   flutter_test:

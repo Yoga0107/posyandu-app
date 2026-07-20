@@ -62,6 +62,15 @@ class ApiClient {
     return _dio.delete(path);
   }
 
+  // ─── Download file (binary), mis. export Excel/PDF ───
+  Future<Response<List<int>>> downloadBytes(String path, {Map<String, dynamic>? params}) async {
+    return _dio.get<List<int>>(
+      path,
+      queryParameters: params,
+      options: Options(responseType: ResponseType.bytes),
+    );
+  }
+
   // ─── Upload multipart ───
   Future<Response> upload(String path, FormData formData, {String method = 'POST'}) async {
     if (method == 'PUT') {

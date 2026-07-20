@@ -60,7 +60,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   child: const Icon(Icons.local_hospital_rounded, size: 60, color: AppColors.primary),
                 ),
                 const SizedBox(height: 24),
-                const Text('POS Yandu', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1)),
+                const Text('PosKita', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1)),
                 const SizedBox(height: 8),
                 const Text('Sistem Informasi Kesehatan Balita', style: TextStyle(fontSize: 14, color: Colors.white70)),
                 const SizedBox(height: 48),

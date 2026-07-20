@@ -9,10 +9,12 @@
 //  /DashboardProvider/LaporanProvider dari core/utils/providers.dart,
 //  yang sudah dicocokkan dengan endpoint backend yang aktif.
 // ═══════════════════════════════════════════════════════════════
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:posyandu_app/features/auth/presentation/screens/jadwal_kalender_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:open_filex/open_filex.dart';
 import '../../../auth/presentation/auth_provider.dart';
 import '../../../auth/data/models/models.dart';
 import '../../../auth/presentation/screens/register_screen.dart';
@@ -20,6 +22,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_widgets.dart';
 import '../../../../core/utils/providers.dart';
 import '../../../../core/constants/app_constants.dart';
+import 'user_management_screen.dart';
 
 
 String _fmtTanggal(String? iso) {
@@ -138,6 +141,13 @@ class _AdminDashboardTabState extends State<_AdminDashboardTab> {
             ),
             title: const Text('Dashboard'),
             actions: [
+              if (user?.isRW == true)
+                IconButton(
+                  icon: const Icon(Icons.manage_accounts_rounded),
+                  tooltip: 'Manajemen Pengguna',
+                  onPressed: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const UserManagementScreen())),
+                ),
               IconButton(
                 icon: const Icon(Icons.bar_chart_rounded),
                 tooltip: 'Laporan Bulanan',
@@ -1891,10 +1901,63 @@ class _LaporanScreenState extends State<LaporanScreen> {
 
   void _fetch() => context.read<LaporanProvider>().fetchBulanan(_bulan, _tahun);
 
+  Future<void> _exportExcel() async {
+    final provider = context.read<LaporanProvider>();
+    final path = await provider.exportExcel(tahun: _tahun);
+    if (!mounted) return;
+    if (path == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(provider.error ?? 'Gagal mengexport laporan'),
+        backgroundColor: AppColors.error,
+      ));
+      return;
+    }
+    if (kIsWeb) {
+      // Di web, browser sudah otomatis memicu download (lihat file_saver_web.dart)
+      // — tidak ada path lokal untuk dibuka lewat aplikasi lain seperti di mobile.
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Laporan berhasil diunduh ke folder Downloads browser'),
+        backgroundColor: AppColors.success,
+      ));
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: const Text('Laporan berhasil diexport'),
+      backgroundColor: AppColors.success,
+      action: SnackBarAction(
+        label: 'Buka',
+        textColor: Colors.white,
+        onPressed: () => OpenFilex.open(path),
+      ),
+    ));
+    // Langsung coba buka file-nya dengan aplikasi spreadsheet di HP.
+    OpenFilex.open(path);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Laporan Bulanan')),
+      appBar: AppBar(
+        title: const Text('Laporan Bulanan'),
+        actions: [
+          Consumer<LaporanProvider>(builder: (_, provider, __) {
+            if (provider.isExporting) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  width: 20, height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                ),
+              );
+            }
+            return IconButton(
+              tooltip: 'Export Excel',
+              icon: const Icon(Icons.file_download_outlined),
+              onPressed: _exportExcel,
+            );
+          }),
+        ],
+      ),
       body: Consumer<LaporanProvider>(builder: (_, provider, __) {
         return Column(children: [
           Padding(

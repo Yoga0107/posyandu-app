@@ -39,7 +39,7 @@ class PosyanduApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LaporanProvider()),
       ],
       child: MaterialApp(
-        title: 'POS Yandu',
+        title: 'POS KITA',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         onGenerateRoute: AppRouter.generateRoute,
