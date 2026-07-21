@@ -11,6 +11,7 @@
 // ═══════════════════════════════════════════════════════════════
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:posyandu_app/features/auth/presentation/screens/formulir_kartu_bantu_screen.dart';
 import 'package:posyandu_app/features/auth/presentation/screens/jadwal_kalender_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -24,6 +25,7 @@ import '../../../../core/utils/providers.dart';
 import '../../../../core/constants/app_constants.dart';
 
 import 'user_management_screen.dart';
+
 
 String _fmtTanggal(String? iso) {
   if (iso == null || iso.isEmpty) return '-';
@@ -1779,6 +1781,16 @@ class _ProfileTab extends StatelessWidget {
                 _infoRow(Icons.email_outlined, user!.email!),
             ]),
           ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: ListTile(
+              leading: const Icon(Icons.description_outlined, color: AppColors.primary),
+              title: const Text('Formulir Kartu Bantu'),
+              subtitle: const Text('Download formulir & kartu pemeriksaan'),
+              trailing: const Icon(Icons.chevron_right, color: AppColors.textHint),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const FormulirKartuBantuScreen()))),
         ),
         const SizedBox(height: 16),
         Card(
