@@ -62,7 +62,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 const SizedBox(height: 24),
                 const Text('PosKita', style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1)),
                 const SizedBox(height: 8),
-                const Text('Sistem Informasi Kesehatan Balita', style: TextStyle(fontSize: 14, color: Colors.white70)),
+                const Text('Sistem Informasi Kesehatan Balita & Lansia', style: TextStyle(fontSize: 14, color: Colors.white70)),
                 const SizedBox(height: 48),
                 const SizedBox(
                   width: 32, height: 32,

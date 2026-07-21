@@ -22,8 +22,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_widgets.dart';
 import '../../../../core/utils/providers.dart';
 import '../../../../core/constants/app_constants.dart';
-import 'user_management_screen.dart';
 
+import 'user_management_screen.dart';
 
 String _fmtTanggal(String? iso) {
   if (iso == null || iso.isEmpty) return '-';
@@ -658,7 +658,28 @@ class _JadwalTabState extends State<_JadwalTab> {
             builder: (_, provider, __) {
               if (provider.isLoading)
                 return const ShimmerList(count: 6, itemHeight: 90);
-              if (provider.list.isEmpty)
+
+              // Filter defensif: JadwalProvider dipakai bersama beberapa
+              // layar (Beranda, Kalender) yang kadang memuat data dengan
+              // filter berbeda. Kalau toggle "Mendatang" aktif di tab ini,
+              // pastikan tidak ada jadwal yang sudah lewat ikut tampil,
+              // walau isi provider.list saat ini kebetulan tidak terfilter.
+              final displayList = !_upcomingOnly
+                  ? provider.list
+                  : (provider.list.where((j) {
+                      try {
+                        final now = DateTime.now();
+                        final today = DateTime(now.year, now.month, now.day);
+                        final d = DateTime.parse(j.tanggal);
+                        final dateOnly = DateTime(d.year, d.month, d.day);
+                        return !dateOnly.isBefore(today);
+                      } catch (_) {
+                        return false;
+                      }
+                    }).toList()
+                      ..sort((a, b) => a.tanggal.compareTo(b.tanggal)));
+
+              if (displayList.isEmpty)
                 return EmptyState(
                   title: 'Tidak ada jadwal',
                   subtitle: provider.error, // ← tambahkan ini
@@ -668,8 +689,8 @@ class _JadwalTabState extends State<_JadwalTab> {
                 onRefresh: () async => _load(),
                 child: ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: provider.list.length,
-                  itemBuilder: (_, i) => _JadwalCard(jadwal: provider.list[i]),
+                  itemCount: displayList.length,
+                  itemBuilder: (_, i) => _JadwalCard(jadwal: displayList[i]),
                 ),
               );
             },
@@ -1863,7 +1884,26 @@ class _WargaHomeTabState extends State<_WargaHomeTab> {
           Consumer<JadwalProvider>(builder: (_, provider, __) {
             if (provider.isLoading)
               return const ShimmerList(count: 2, itemHeight: 90);
-            if (provider.list.isEmpty) {
+
+            // Filter defensif: JadwalProvider dipakai bersama beberapa layar
+            // (tab Jadwal, Kalender) yang kadang memuat SEMUA jadwal tanpa
+            // filter. Supaya section ini selalu benar walau provider sedang
+            // menyimpan data tak terfilter, saring ulang di sini berdasarkan
+            // tanggal — bukan cuma percaya provider.list sudah "mendatang saja".
+            final today = DateTime.now();
+            final todayDate = DateTime(today.year, today.month, today.day);
+            final upcoming = provider.list.where((j) {
+              try {
+                final d = DateTime.parse(j.tanggal);
+                final dateOnly = DateTime(d.year, d.month, d.day);
+                return !dateOnly.isBefore(todayDate);
+              } catch (_) {
+                return false;
+              }
+            }).toList()
+              ..sort((a, b) => a.tanggal.compareTo(b.tanggal));
+
+            if (upcoming.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4),
                 child: Text('Tidak ada jadwal mendatang',
@@ -1872,7 +1912,7 @@ class _WargaHomeTabState extends State<_WargaHomeTab> {
             }
             return Column(
                 children:
-                    provider.list.map((j) => _JadwalCard(jadwal: j)).toList());
+                    upcoming.map((j) => _JadwalCard(jadwal: j)).toList());
           }),
         ]),
       ),
