@@ -22,25 +22,25 @@ class KartuBantuItem {
   });
 }
 
-// TODO: ganti url di bawah dengan link Google Drive asli tiap formulir.
-// Sementara semua diarahkan ke satu folder Drive placeholder yang sama.
+// TODO: link untuk "Kartu Pemeriksaan Usia Produktif dan Lansia" belum
+// diberikan — ganti placeholder ini kalau linknya sudah ada.
 const String _placeholderDriveUrl =
     'https://drive.google.com/drive/folders/GANTI_DENGAN_ID_FOLDER_ANDA';
 
 const List<KartuBantuItem> _kartuBantuList = [
-  KartuBantuItem(no: 1, sasaran: 'Bumil, Bufas, dan Busui', formulir: 'Data Sasaran Ibu Hamil, Nifas, dan Menyusui', url: _placeholderDriveUrl),
-  KartuBantuItem(no: 2, sasaran: 'Bumil, Bufas, dan Busui', formulir: 'Kartu Pemeriksaan Ibu Hamil, Nifas, dan Menyusui', url: _placeholderDriveUrl),
-  KartuBantuItem(no: 3, sasaran: 'Bumil, Bufas, dan Busui', formulir: 'Rekapitulasi Hasil Pemeriksaan Ibu Hamil, Nifas, dan Menyusui', url: _placeholderDriveUrl),
-  KartuBantuItem(no: 4, sasaran: 'Bayi, Balita, dan Apras', formulir: 'Data Sasaran Bayi, Balita, dan Anak Pra-Sekolah', url: _placeholderDriveUrl),
-  KartuBantuItem(no: 5, sasaran: 'Bayi, Balita, dan Apras', formulir: 'Kartu Pemeriksaan Bayi, Balita, dan Anak Pra-Sekolah', url: _placeholderDriveUrl),
-  KartuBantuItem(no: 6, sasaran: 'Bayi, Balita, dan Apras', formulir: 'Rekapitulasi Hasil Pemeriksaan Bayi, Balita, dan Anak Pra-Sekolah', url: _placeholderDriveUrl),
-  KartuBantuItem(no: 7, sasaran: 'Usia Sekolah dan Remaja', formulir: 'Data Sasaran Usia Sekolah dan Remaja', url: _placeholderDriveUrl),
-  KartuBantuItem(no: 8, sasaran: 'Usia Sekolah dan Remaja', formulir: 'Kartu Pemeriksaan Usia Sekolah dan Remaja', url: _placeholderDriveUrl),
-  KartuBantuItem(no: 9, sasaran: 'Usia Sekolah dan Remaja', formulir: 'Rekapitulasi Hasil Pemeriksaan Usia Sekolah dan Remaja', url: _placeholderDriveUrl),
-  KartuBantuItem(no: 10, sasaran: 'Dewasa dan Lansia', formulir: 'Data Sasaran Usia Produktif dan Lansia', url: _placeholderDriveUrl),
+  KartuBantuItem(no: 1, sasaran: 'Bumil, Bufas, dan Busui', formulir: 'Data Sasaran Ibu Hamil, Nifas, dan Menyusui', url: 'https://drive.google.com/file/d/1KLR0Q8OapH3NMPXmGlxA6b0qJaH4AT8h/view?usp=drive_link'),
+  KartuBantuItem(no: 2, sasaran: 'Bumil, Bufas, dan Busui', formulir: 'Kartu Pemeriksaan Ibu Hamil, Nifas, dan Menyusui', url: 'https://drive.google.com/file/d/1zTKSTnFitskIOTUTuL__eDv8Ev0COmrK/view?usp=drive_link'),
+  KartuBantuItem(no: 3, sasaran: 'Bumil, Bufas, dan Busui', formulir: 'Rekapitulasi Hasil Pemeriksaan Ibu Hamil, Nifas, dan Menyusui', url: 'https://drive.google.com/file/d/1AqJKR8JuqhYw2BqKUgDM4Wjn4QyVXHin/view?usp=drive_link'),
+  KartuBantuItem(no: 4, sasaran: 'Bayi, Balita, dan Apras', formulir: 'Data Sasaran Bayi, Balita, dan Anak Pra-Sekolah', url: 'https://drive.google.com/file/d/1SSaOi03DiYQqogLwEyoUsPh8P5Gfj6vU/view?usp=drive_link'),
+  KartuBantuItem(no: 5, sasaran: 'Bayi, Balita, dan Apras', formulir: 'Kartu Pemeriksaan Bayi, Balita, dan Anak Pra-Sekolah', url: 'https://drive.google.com/file/d/165vtbN-4tmX9OtSziesvnmLnvxHPzEJo/view?usp=drive_link'),
+  KartuBantuItem(no: 6, sasaran: 'Bayi, Balita, dan Apras', formulir: 'Rekapitulasi Hasil Pemeriksaan Bayi, Balita, dan Anak Pra-Sekolah', url: 'https://drive.google.com/file/d/1SsXFiUy8mqhFR2jWZCk1c59gGtxyvsKQ/view?usp=drive_link'),
+  KartuBantuItem(no: 7, sasaran: 'Usia Sekolah dan Remaja', formulir: 'Data Sasaran Usia Sekolah dan Remaja', url: 'https://drive.google.com/file/d/1aSWmz-hwP0nfpUUXjHvaC_94Mb9LiJV8/view?usp=drive_link'),
+  KartuBantuItem(no: 8, sasaran: 'Usia Sekolah dan Remaja', formulir: 'Kartu Pemeriksaan Usia Sekolah dan Remaja', url: 'https://drive.google.com/file/d/1QoQG7gMImDeTj0YXMkCitXER29epFnra/view?usp=drive_link'),
+  KartuBantuItem(no: 9, sasaran: 'Usia Sekolah dan Remaja', formulir: 'Rekapitulasi Hasil Pemeriksaan Usia Sekolah dan Remaja', url: 'https://drive.google.com/file/d/1AAdAv4oyzXfGuE7uLluIxRvxhQMSL5th/view?usp=drive_link'),
+  KartuBantuItem(no: 10, sasaran: 'Dewasa dan Lansia', formulir: 'Data Sasaran Usia Produktif dan Lansia', url: 'https://drive.google.com/file/d/1iC8zRbRD1G76nWL-6l3PZFf6efyvTnbI/view?usp=drive_link'),
   KartuBantuItem(no: 11, sasaran: 'Dewasa dan Lansia', formulir: 'Kartu Pemeriksaan Usia Produktif dan Lansia', url: _placeholderDriveUrl),
-  KartuBantuItem(no: 12, sasaran: 'Lansia', formulir: 'Kartu Pemeriksaan Lansia (ASK dan SKILAS)', url: _placeholderDriveUrl),
-  KartuBantuItem(no: 13, sasaran: 'Dewasa dan Lansia', formulir: 'Rekapitulasi Hasil Pemeriksaan Usia Produktif dan Lansia', url: _placeholderDriveUrl),
+  KartuBantuItem(no: 12, sasaran: 'Lansia', formulir: 'Kartu Pemeriksaan Lansia (ASK dan SKILAS)', url: 'https://drive.google.com/file/d/1PYc3Zjj423i2rHP8K_hM-pxRNi3AQenn/view?usp=drive_link'),
+  KartuBantuItem(no: 13, sasaran: 'Dewasa dan Lansia', formulir: 'Rekapitulasi Hasil Pemeriksaan Usia Produktif dan Lansia', url: 'https://drive.google.com/file/d/1G2tRqtooyvn70WIDXJUUTAAJmuBdVVEM/view?usp=drive_link'),
 ];
 
 class FormulirKartuBantuScreen extends StatelessWidget {

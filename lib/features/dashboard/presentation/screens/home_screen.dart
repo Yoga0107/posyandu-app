@@ -23,7 +23,6 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_widgets.dart';
 import '../../../../core/utils/providers.dart';
 import '../../../../core/constants/app_constants.dart';
-
 import 'user_management_screen.dart';
 
 
@@ -34,6 +33,31 @@ String _fmtTanggal(String? iso) {
     return DateFormat('EEEE, d MMM yyyy', 'id_ID').format(d);
   } catch (_) {
     return iso;
+  }
+}
+
+/// Hitung umur dari tanggal lahir. Balita ditampilkan dalam bulan (atau
+/// "X thn Y bln" kalau sudah lebih dari setahun), lansia/dewasa dalam tahun.
+String hitungUmur(String? tanggalLahirIso, {bool isBalita = true}) {
+  if (tanggalLahirIso == null || tanggalLahirIso.isEmpty) return '-';
+  try {
+    final lahir = DateTime.parse(tanggalLahirIso);
+    final now = DateTime.now();
+    int totalBulan = (now.year - lahir.year) * 12 + (now.month - lahir.month);
+    if (now.day < lahir.day) totalBulan--;
+    if (totalBulan < 0) totalBulan = 0;
+
+    if (isBalita) {
+      if (totalBulan < 12) return '$totalBulan bulan';
+      final tahun = totalBulan ~/ 12;
+      final sisaBulan = totalBulan % 12;
+      return sisaBulan == 0 ? '$tahun tahun' : '$tahun thn $sisaBulan bln';
+    } else {
+      final tahun = totalBulan ~/ 12;
+      return '$tahun tahun';
+    }
+  } catch (_) {
+    return '-';
   }
 }
 
@@ -1162,10 +1186,12 @@ class _JadwalDetailScreenState extends State<JadwalDetailScreen> {
                                     builder: (_) => k.kategori == 'balita'
                                         ? PemeriksaanBalitaFormScreen(
                                             kunjunganId: k.id,
-                                            namaWarga: k.namaWarga ?? '-')
+                                            namaWarga: k.namaWarga ?? '-',
+                                            tanggalLahir: k.tanggalLahir)
                                         : PemeriksaanPosbinduFormScreen(
                                             kunjunganId: k.id,
-                                            namaWarga: k.namaWarga ?? '-'),
+                                            namaWarga: k.namaWarga ?? '-',
+                                            tanggalLahir: k.tanggalLahir),
                                   ),
                                 );
                                 if (result == true && mounted) _load();
@@ -1226,9 +1252,18 @@ class _KunjunganRow extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-                child: Text(kunjungan.namaWarga ?? '-',
+                child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(kunjungan.namaWarga ?? '-',
                     style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 13))),
+                        fontWeight: FontWeight.w700, fontSize: 13)),
+                Text(
+                    'Umur: ${hitungUmur(kunjungan.tanggalLahir, isBalita: kunjungan.kategori != 'lansia')}',
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.textSecondary)),
+              ],
+            )),
             if (kunjungan.kategori == 'balita' && kunjungan.statusGizi != null)
               StatusGiziBadge(kode: kunjungan.statusGizi)
             else if (kunjungan.kategori == 'lansia' &&
@@ -1333,7 +1368,7 @@ class _PilihWargaSheet extends StatelessWidget {
                     ),
                     title: Text(w.namaTampilan),
                     subtitle: Text(
-                        'NIK: ${w.nik}${w.namaUser != null ? ' · Akun: ${w.namaUser}' : ''}'),
+                        'NIK: ${w.nik} · Umur: ${hitungUmur(w.tanggalLahir, isBalita: w.isBalita)}${w.namaUser != null ? ' · Akun: ${w.namaUser}' : ''}'),
                     onTap: () => Navigator.pop(context, w),
                   );
                 },
@@ -1352,8 +1387,9 @@ class _PilihWargaSheet extends StatelessWidget {
 class PemeriksaanBalitaFormScreen extends StatefulWidget {
   final String kunjunganId;
   final String namaWarga;
+  final String? tanggalLahir;
   const PemeriksaanBalitaFormScreen(
-      {super.key, required this.kunjunganId, required this.namaWarga});
+      {super.key, required this.kunjunganId, required this.namaWarga, this.tanggalLahir});
   @override
   State<PemeriksaanBalitaFormScreen> createState() =>
       _PemeriksaanBalitaFormScreenState();
@@ -1433,6 +1469,36 @@ class _PemeriksaanBalitaFormScreenState
         builder: (_, provider, __) => Form(
           key: _formKey,
           child: ListView(padding: const EdgeInsets.all(20), children: [
+            Card(
+              color: AppColors.primaryLighter,
+              elevation: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(children: [
+                  const CircleAvatar(
+                    backgroundColor: AppColors.primary,
+                    child: Icon(Icons.child_care_rounded, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(widget.namaWarga,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 14)),
+                        const SizedBox(height: 2),
+                        Text(
+                            'Umur: ${hitungUmur(widget.tanggalLahir, isBalita: true)}',
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 20),
             TextFormField(
               controller: _beratCtrl,
               keyboardType:
@@ -1513,8 +1579,9 @@ class _PemeriksaanBalitaFormScreenState
 class PemeriksaanPosbinduFormScreen extends StatefulWidget {
   final String kunjunganId;
   final String namaWarga;
+  final String? tanggalLahir;
   const PemeriksaanPosbinduFormScreen(
-      {super.key, required this.kunjunganId, required this.namaWarga});
+      {super.key, required this.kunjunganId, required this.namaWarga, this.tanggalLahir});
   @override
   State<PemeriksaanPosbinduFormScreen> createState() =>
       _PemeriksaanPosbinduFormScreenState();
@@ -1584,6 +1651,36 @@ class _PemeriksaanPosbinduFormScreenState
         builder: (_, provider, __) => Form(
           key: _formKey,
           child: ListView(padding: const EdgeInsets.all(20), children: [
+            Card(
+              color: AppColors.primaryLighter,
+              elevation: 0,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(children: [
+                  const CircleAvatar(
+                    backgroundColor: AppColors.primary,
+                    child: Icon(Icons.elderly, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(widget.namaWarga,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 14)),
+                        const SizedBox(height: 2),
+                        Text(
+                            'Umur: ${hitungUmur(widget.tanggalLahir, isBalita: false)}',
+                            style: const TextStyle(
+                                fontSize: 12, color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 20),
             TextFormField(
               controller: _beratCtrl,
               keyboardType:
