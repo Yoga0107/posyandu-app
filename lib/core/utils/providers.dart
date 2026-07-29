@@ -60,9 +60,16 @@ class WargaProvider extends ChangeNotifier {
     } catch (_) { return false; }
   }
 
+  Map<String, dynamic>? _lastPendaftaran;
+  Map<String, dynamic>? get lastPendaftaran => _lastPendaftaran;
+
+  /// [data] boleh menyertakan key 'jadwal_id' supaya warga yang baru dibuat
+  /// langsung didaftarkan (status 'terdaftar') ke jadwal tsb dalam satu
+  /// request — lihat warga.controller.js `create()`.
   Future<bool> create(Map<String, dynamic> data) async {
     try {
-      await _api.post('/warga', data: data);
+      final r = await _api.post('/warga', data: data);
+      _lastPendaftaran = r.data['data']?['pendaftaran'];
       await fetchAll(); return true;
     } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
   }
@@ -184,9 +191,39 @@ class KunjunganProvider extends ChangeNotifier {
     _isLoading = false; notifyListeners();
   }
 
+  /// Langkah 1: WARGA mendaftar ke jadwal (belum tentu hadir). Dipakai oleh
+  /// warga sendiri (memilih salah satu data balita/lansia miliknya) atau
+  /// kader yang membantu mendaftarkan warga yang tidak pakai aplikasi.
+  Future<bool> daftar(String wargaId, String jadwalId) async {
+    try {
+      await _api.post('/kunjungan/daftar', data: {'warga_id': wargaId, 'jadwal_id': jadwalId});
+      return true;
+    } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
+  }
+
+  /// Langkah 2: KADER meng-check-in warga yang datang langsung ("walk-in",
+  /// belum pernah daftar) — kalau ternyata sudah pernah daftar, baris yang
+  /// sama otomatis dikonfirmasi 'hadir' oleh backend.
   Future<bool> checkin(String wargaId, String jadwalId) async {
     try {
       await _api.post('/kunjungan/checkin', data: {'warga_id': wargaId, 'jadwal_id': jadwalId});
+      return true;
+    } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
+  }
+
+  /// KADER meng-check-in satu baris pendaftaran tertentu langsung dari
+  /// daftar antrian (mis. tap tombol "Check-in" di daftar "Menunggu").
+  Future<bool> checkinById(String kunjunganId) async {
+    try {
+      await _api.patch('/kunjungan/$kunjunganId/checkin');
+      return true;
+    } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
+  }
+
+  /// WARGA membatalkan pendaftarannya sendiri (selama belum check-in).
+  Future<bool> batalkan(String kunjunganId) async {
+    try {
+      await _api.patch('/kunjungan/$kunjunganId/batal');
       return true;
     } catch (e) { _error = parseApiError(e); notifyListeners(); return false; }
   }

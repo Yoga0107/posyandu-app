@@ -11,6 +11,7 @@
 // ═══════════════════════════════════════════════════════════════
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:posyandu_app/features/auth/presentation/screens/formulir_kartu_bantu_screen.dart';
 import 'package:posyandu_app/features/auth/presentation/screens/jadwal_kalender_screen.dart';
 import 'package:provider/provider.dart';
@@ -31,6 +32,17 @@ String _fmtTanggal(String? iso) {
   try {
     final d = DateTime.parse(iso);
     return DateFormat('EEEE, d MMM yyyy', 'id_ID').format(d);
+  } catch (_) {
+    return iso;
+  }
+}
+
+/// Format singkat untuk label sumbu-x pada grafik (mis. "12 Jul").
+String _fmtTanggalSingkat(String? iso) {
+  if (iso == null || iso.isEmpty) return '-';
+  try {
+    final d = DateTime.parse(iso);
+    return DateFormat('d MMM', 'id_ID').format(d);
   } catch (_) {
     return iso;
   }
@@ -550,6 +562,10 @@ class _WargaDetailScreenState extends State<WargaDetailScreen> {
               ),
             ],
             const SizedBox(height: 20),
+            SectionHeader(
+                title: w.isBalita ? 'Grafik Tumbuh Kembang' : 'Grafik Tekanan Darah'),
+            _GrafikTumbuhKembang(grafik: provider.grafik, isBalita: w.isBalita),
+            const SizedBox(height: 20),
             const SectionHeader(title: 'Riwayat Kunjungan'),
             if (provider.riwayat.isEmpty)
               const Padding(
@@ -571,7 +587,9 @@ class _WargaDetailScreenState extends State<WargaDetailScreen> {
                           ? 'Gizi: ${AppConstants.statusGiziLabel[r['status_gizi']] ?? r['status_gizi']}'
                           : r['status_tensi'] != null
                               ? 'Tensi: ${AppConstants.labelStatusTensi[r['status_tensi']] ?? r['status_tensi']}'
-                              : 'Belum diperiksa'),
+                              : (r['status_kehadiran'] == 'terdaftar'
+                                  ? 'Menunggu check-in'
+                                  : 'Sudah check-in, belum diperiksa')),
                       trailing: Text(
                         r['status_pmt'] == 'sudah' ? 'PMT ✓' : '',
                         style: const TextStyle(
@@ -601,6 +619,369 @@ class _WargaDetailScreenState extends State<WargaDetailScreen> {
                       color: AppColors.textPrimary))),
         ]),
       );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  GRAFIK TUMBUH KEMBANG (balita: BB/TB) & GRAFIK TENSI (lansia)
+//  Dipakai di WargaDetailScreen sebagai bagian dari use case
+//  "Lihat Riwayat & Grafik Tumbuh Kembang" — sumber data dari
+//  GET /api/warga/:id/grafik (lihat WargaProvider.fetchGrafik &
+//  warga.controller.js `getGrafik`).
+// ═══════════════════════════════════════════════════════════════
+class _GrafikTumbuhKembang extends StatelessWidget {
+  final List<dynamic> grafik;
+  final bool isBalita;
+  const _GrafikTumbuhKembang({required this.grafik, required this.isBalita});
+
+  double? _num(dynamic v) => v == null ? null : double.tryParse(v.toString());
+
+  @override
+  Widget build(BuildContext context) {
+    if (grafik.length < 2) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(children: [
+            const Icon(Icons.show_chart_rounded, color: AppColors.textHint),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                grafik.isEmpty
+                    ? 'Grafik akan muncul setelah warga pernah diperiksa di Meja 2/3'
+                    : 'Grafik akan muncul setelah minimal 2 kali pemeriksaan',
+                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ),
+          ]),
+        ),
+      );
+    }
+    return isBalita ? _buildBalita() : _buildLansia();
+  }
+
+  Widget _buildBalita() {
+    final tanggal = grafik.map((e) => _fmtTanggalSingkat(e['tanggal']?.toString())).toList();
+
+    final bbSpots = <FlSpot>[];
+    final bbColors = <Color>[];
+    final tbSpots = <FlSpot>[];
+    final tbColors = <Color>[];
+    for (var i = 0; i < grafik.length; i++) {
+      final e = grafik[i];
+      final warna = AppColors.statusGiziColor(e['status_gizi']?.toString());
+      final b = _num(e['berat_badan_kg']);
+      if (b != null) { bbSpots.add(FlSpot(i.toDouble(), b)); bbColors.add(warna); }
+      final t = _num(e['tinggi_badan_cm']);
+      if (t != null) { tbSpots.add(FlSpot(i.toDouble(), t)); tbColors.add(warna); }
+    }
+
+    final terakhir = grafik.last;
+    final sebelumnya = grafik[grafik.length - 2];
+    final deltaBB = (_num(terakhir['berat_badan_kg']) ?? 0) - (_num(sebelumnya['berat_badan_kg']) ?? 0);
+    final deltaTB = (_num(terakhir['tinggi_badan_cm']) ?? 0) - (_num(sebelumnya['tinggi_badan_cm']) ?? 0);
+
+    return Column(children: [
+      Row(children: [
+        Expanded(
+            child: _ringkasanTren('Berat Badan',
+                '${_num(terakhir['berat_badan_kg'])?.toStringAsFixed(1) ?? '-'} kg', deltaBB, 'kg')),
+        const SizedBox(width: 10),
+        Expanded(
+            child: _ringkasanTren('Tinggi Badan',
+                '${_num(terakhir['tinggi_badan_cm'])?.toStringAsFixed(1) ?? '-'} cm', deltaTB, 'cm')),
+      ]),
+      const SizedBox(height: 10),
+      _chartCard('Berat Badan (kg)', bbSpots, bbColors, tanggal),
+      const SizedBox(height: 12),
+      _chartCard('Tinggi Badan (cm)', tbSpots, tbColors, tanggal),
+      const SizedBox(height: 8),
+      _legendStatusGizi(),
+    ]);
+  }
+
+  Widget _buildLansia() {
+    final tanggal = grafik.map((e) => _fmtTanggalSingkat(e['tanggal']?.toString())).toList();
+    final sistol = <FlSpot>[];
+    final diastol = <FlSpot>[];
+    for (var i = 0; i < grafik.length; i++) {
+      final e = grafik[i];
+      final s = _num(e['tensi_sistol']);
+      if (s != null) sistol.add(FlSpot(i.toDouble(), s));
+      final d = _num(e['tensi_diastol']);
+      if (d != null) diastol.add(FlSpot(i.toDouble(), d));
+    }
+
+    final terakhir = grafik.last;
+    final sebelumnya = grafik[grafik.length - 2];
+    final deltaSistol = (_num(terakhir['tensi_sistol']) ?? 0) - (_num(sebelumnya['tensi_sistol']) ?? 0);
+
+    return Column(children: [
+      _ringkasanTren(
+        'Tekanan Darah Terakhir',
+        '${_num(terakhir['tensi_sistol'])?.toStringAsFixed(0) ?? '-'}/${_num(terakhir['tensi_diastol'])?.toStringAsFixed(0) ?? '-'} mmHg',
+        deltaSistol,
+        'mmHg',
+      ),
+      const SizedBox(height: 10),
+      _tensiChartCard(sistol, diastol, tanggal),
+    ]);
+  }
+
+  Widget _ringkasanTren(String label, String nilaiTerkini, double delta, String satuan) {
+    final naik = delta > 0.05;
+    final turun = delta < -0.05;
+    final warna = naik ? AppColors.info : (turun ? AppColors.orange : AppColors.textSecondary);
+    final ikon = naik
+        ? Icons.arrow_upward_rounded
+        : (turun ? Icons.arrow_downward_rounded : Icons.remove_rounded);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+          const SizedBox(height: 4),
+          Text(nilaiTerkini,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(ikon, size: 13, color: warna),
+            const SizedBox(width: 3),
+            Text('${delta.abs().toStringAsFixed(1)} $satuan dari sebelumnya',
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: warna)),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  Widget _chartCard(String title, List<FlSpot> spots, List<Color> dotColors, List<String> tanggalLabels) {
+    if (spots.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text('Belum ada data $title', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        ),
+      );
+    }
+    final ys = spots.map((s) => s.y).toList();
+    final minY = ys.reduce((a, b) => a < b ? a : b);
+    final maxY = ys.reduce((a, b) => a > b ? a : b);
+    final range = (maxY - minY).abs();
+    final pad = range < 1 ? 1.0 : range * 0.25;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 16, 20, 12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 160,
+            child: LineChart(LineChartData(
+              minY: (minY - pad).clamp(0, double.infinity).toDouble(),
+              maxY: maxY + pad,
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                getDrawingHorizontalLine: (v) => const FlLine(color: AppColors.divider, strokeWidth: 1),
+              ),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 34,
+                    getTitlesWidget: (v, meta) => Text(v.toStringAsFixed(0),
+                        style: const TextStyle(fontSize: 9, color: AppColors.textHint)),
+                  ),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 26,
+                    getTitlesWidget: (v, meta) {
+                      final i = v.toInt();
+                      if (i < 0 || i >= tanggalLabels.length) return const SizedBox.shrink();
+                      final step = tanggalLabels.length > 6 ? (tanggalLabels.length / 5).ceil() : 1;
+                      if (i % step != 0) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(tanggalLabels[i],
+                            style: const TextStyle(fontSize: 9, color: AppColors.textHint)),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              lineTouchData: LineTouchData(
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipItems: (touched) => touched
+                      .map((s) => LineTooltipItem(s.y.toStringAsFixed(1),
+                          const TextStyle(color: Colors.white, fontSize: 11)))
+                      .toList(),
+                ),
+              ),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: spots,
+                  isCurved: true,
+                  color: AppColors.primary,
+                  barWidth: 2.5,
+                  dotData: FlDotData(
+                    show: true,
+                    getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
+                      radius: 4,
+                      color: index < dotColors.length ? dotColors[index] : AppColors.primary,
+                      strokeWidth: 1.5,
+                      strokeColor: AppColors.white,
+                    ),
+                  ),
+                  belowBarData: BarAreaData(show: true, color: AppColors.primary.withOpacity(0.08)),
+                ),
+              ],
+            )),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _tensiChartCard(List<FlSpot> sistol, List<FlSpot> diastol, List<String> tanggalLabels) {
+    final allY = [...sistol.map((s) => s.y), ...diastol.map((s) => s.y), 140.0, 90.0];
+    final minY = allY.reduce((a, b) => a < b ? a : b);
+    final maxY = allY.reduce((a, b) => a > b ? a : b);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 16, 20, 12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Expanded(
+              child: Text('Tekanan Darah (mmHg)',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            ),
+            _legendDot(AppColors.statusBuruk, 'Sistol'),
+            const SizedBox(width: 10),
+            _legendDot(AppColors.primary, 'Diastol'),
+          ]),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 170,
+            child: LineChart(LineChartData(
+              minY: (minY - 10).clamp(0, double.infinity).toDouble(),
+              maxY: maxY + 10,
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                getDrawingHorizontalLine: (v) => const FlLine(color: AppColors.divider, strokeWidth: 1),
+              ),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 34,
+                    getTitlesWidget: (v, meta) => Text(v.toStringAsFixed(0),
+                        style: const TextStyle(fontSize: 9, color: AppColors.textHint)),
+                  ),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 26,
+                    getTitlesWidget: (v, meta) {
+                      final i = v.toInt();
+                      if (i < 0 || i >= tanggalLabels.length) return const SizedBox.shrink();
+                      final step = tanggalLabels.length > 6 ? (tanggalLabels.length / 5).ceil() : 1;
+                      if (i % step != 0) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(tanggalLabels[i],
+                            style: const TextStyle(fontSize: 9, color: AppColors.textHint)),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              extraLinesData: ExtraLinesData(horizontalLines: [
+                HorizontalLine(
+                  y: 140,
+                  color: AppColors.statusBuruk.withOpacity(0.5),
+                  strokeWidth: 1,
+                  dashArray: const [6, 4],
+                  label: HorizontalLineLabel(
+                    show: true,
+                    alignment: Alignment.topRight,
+                    style: const TextStyle(fontSize: 9, color: AppColors.statusBuruk),
+                    labelResolver: (_) => 'Sistol >140',
+                  ),
+                ),
+                HorizontalLine(
+                  y: 90,
+                  color: AppColors.primary.withOpacity(0.5),
+                  strokeWidth: 1,
+                  dashArray: const [6, 4],
+                  label: HorizontalLineLabel(
+                    show: true,
+                    alignment: Alignment.bottomRight,
+                    style: const TextStyle(fontSize: 9, color: AppColors.primary),
+                    labelResolver: (_) => 'Diastol >90',
+                  ),
+                ),
+              ]),
+              lineTouchData: LineTouchData(
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipItems: (touched) => touched
+                      .map((s) => LineTooltipItem(s.y.toStringAsFixed(0),
+                          const TextStyle(color: Colors.white, fontSize: 11)))
+                      .toList(),
+                ),
+              ),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: sistol,
+                  isCurved: true,
+                  color: AppColors.statusBuruk,
+                  barWidth: 2.5,
+                  dotData: const FlDotData(show: true),
+                  belowBarData: BarAreaData(show: false),
+                ),
+                LineChartBarData(
+                  spots: diastol,
+                  isCurved: true,
+                  color: AppColors.primary,
+                  barWidth: 2.5,
+                  dotData: const FlDotData(show: true),
+                  belowBarData: BarAreaData(show: false),
+                ),
+              ],
+            )),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _legendDot(Color color, String label) => Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+      ]);
+
+  Widget _legendStatusGizi() {
+    const kode = ['normal', 'underweight', 'stunting', 'overweight'];
+    return Wrap(
+      spacing: 12,
+      runSpacing: 4,
+      children: kode
+          .map((k) => _legendDot(AppColors.statusGiziColor(k), AppConstants.statusGiziLabel[k] ?? k))
+          .toList(),
+    );
+  }
 }
 
 // ═══════════════════════════════════════
@@ -1032,7 +1413,16 @@ class _JadwalDetailScreenState extends State<JadwalDetailScreen> {
 
   void _load() {
     context.read<JadwalProvider>().fetchById(widget.jadwalId);
-    context.read<KunjunganProvider>().fetchStatusHariIni(widget.jadwalId);
+    final isAdmin = context.read<AuthProvider>().isAdminLevel;
+    if (isAdmin) {
+      // Kader/RW: lihat seluruh antrian (yang menunggu check-in maupun
+      // yang sudah check-in) untuk jadwal ini.
+      context.read<KunjunganProvider>().fetchStatusHariIni(widget.jadwalId);
+    } else {
+      // Warga: lihat status pendaftaran milik keluarganya sendiri saja
+      // pada jadwal ini (backend otomatis memfilter berdasar akun login).
+      context.read<KunjunganProvider>().fetchAll(jadwalId: widget.jadwalId);
+    }
   }
 
   Future<void> _checkinDialog(JadwalModel jadwal) async {
@@ -1063,6 +1453,83 @@ class _JadwalDetailScreenState extends State<JadwalDetailScreen> {
     }
   }
 
+  /// KADER: konfirmasi kehadiran satu baris pendaftaran yang sudah ada di
+  /// antrian ("Menunggu Check-in" -> "Sudah Check-in").
+  Future<void> _checkinById(String kunjunganId) async {
+    final ok = await context.read<KunjunganProvider>().checkinById(kunjunganId);
+    if (!mounted) return;
+    if (ok) _load();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok
+          ? 'Check-in berhasil'
+          : (context.read<KunjunganProvider>().error ?? 'Check-in gagal')),
+      backgroundColor: ok ? AppColors.success : AppColors.error,
+    ));
+  }
+
+  /// WARGA: mendaftarkan salah satu data balita/lansia miliknya (yang
+  /// sudah pernah dibuat sebelumnya) ke jadwal ini.
+  Future<void> _daftarDialog(JadwalModel jadwal) async {
+    final kategori = jadwal.isPosyandu ? 'balita' : 'lansia';
+    await context.read<WargaProvider>().fetchAll(kategori: kategori);
+    if (!mounted) return;
+
+    final pilihan = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const _PilihanDaftarSheet(),
+    );
+    if (pilihan == null || !mounted) return;
+
+    if (pilihan == 'baru') {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RegisterScreen(
+            jadwalId: jadwal.id,
+            jadwalLabel: '${jadwal.lokasi} · ${_fmtTanggal(jadwal.tanggal)} · ${jadwal.jam}',
+          ),
+        ),
+      );
+      if (result == true && mounted) _load();
+      return;
+    }
+
+    // pilihan == 'lama' -> pilih dari data yang sudah ada
+    final warga = await showModalBottomSheet<WargaModel>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const _PilihWargaMilikSendiriSheet(),
+    );
+    if (warga == null || !mounted) return;
+
+    final ok = await context.read<KunjunganProvider>().daftar(warga.id, jadwal.id);
+    if (!mounted) return;
+    if (ok) {
+      _load();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Pendaftaran berhasil. Datang sesuai jadwal untuk check-in di lokasi.'),
+          backgroundColor: AppColors.success));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.read<KunjunganProvider>().error ?? 'Pendaftaran gagal'),
+        backgroundColor: AppColors.error,
+      ));
+    }
+  }
+
+  Future<void> _batalkanPendaftaran(String kunjunganId) async {
+    final ok = await context.read<KunjunganProvider>().batalkan(kunjunganId);
+    if (!mounted) return;
+    if (ok) _load();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok
+          ? 'Pendaftaran dibatalkan'
+          : (context.read<KunjunganProvider>().error ?? 'Gagal membatalkan pendaftaran')),
+      backgroundColor: ok ? AppColors.success : AppColors.error,
+    ));
+  }
+
   Future<void> _konfirmasiPMT(String kunjunganId) async {
     final ok =
         await context.read<KunjunganProvider>().konfirmasiPMT(kunjunganId);
@@ -1091,7 +1558,14 @@ class _JadwalDetailScreenState extends State<JadwalDetailScreen> {
               icon: const Icon(Icons.how_to_reg_rounded),
               label: const Text('Checkin Warga'),
             )
-          : null,
+          : FloatingActionButton.extended(
+              onPressed: () async {
+                final j = context.read<JadwalProvider>().selected;
+                if (j != null) await _daftarDialog(j);
+              },
+              icon: const Icon(Icons.app_registration_rounded),
+              label: const Text('Daftar ke Jadwal Ini'),
+            ),
       body: Consumer<JadwalProvider>(
         builder: (_, jp, __) {
           if (jp.isLoading && jp.selected == null)
@@ -1149,59 +1623,90 @@ class _JadwalDetailScreenState extends State<JadwalDetailScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              const SectionHeader(title: 'Status Kunjungan Hari Ini'),
-              Consumer<KunjunganProvider>(builder: (_, kp, __) {
-                if (kp.isLoading)
-                  return const ShimmerList(count: 3, itemHeight: 70);
-                if (kp.hariIni.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4),
-                    child: Text('Belum ada warga yang check-in',
-                        style: TextStyle(color: AppColors.textSecondary)),
-                  );
-                }
-                return Column(children: [
-                  if (kp.ringkasanHariIni != null)
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(children: [
-                          _ringkasanItem('Hadir',
-                              '${kp.ringkasanHariIni!['total_hadir'] ?? 0}'),
-                          _ringkasanItem('Diperiksa',
-                              '${kp.ringkasanHariIni!['sudah_periksa'] ?? 0}'),
-                          _ringkasanItem('PMT',
-                              '${kp.ringkasanHariIni!['sudah_pmt'] ?? 0}'),
-                        ]),
+              if (isAdmin) ...[
+                const SectionHeader(title: 'Antrian Pendaftaran & Kunjungan'),
+                Consumer<KunjunganProvider>(builder: (_, kp, __) {
+                  if (kp.isLoading)
+                    return const ShimmerList(count: 3, itemHeight: 70);
+                  if (kp.hariIni.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4),
+                      child: Text('Belum ada warga yang mendaftar/check-in',
+                          style: TextStyle(color: AppColors.textSecondary)),
+                    );
+                  }
+                  return Column(children: [
+                    if (kp.ringkasanHariIni != null)
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(children: [
+                            _ringkasanItem('Menunggu',
+                                '${kp.ringkasanHariIni!['total_terdaftar'] ?? 0}'),
+                            _ringkasanItem('Hadir',
+                                '${kp.ringkasanHariIni!['total_hadir'] ?? 0}'),
+                            _ringkasanItem('Diperiksa',
+                                '${kp.ringkasanHariIni!['sudah_periksa'] ?? 0}'),
+                            _ringkasanItem('PMT',
+                                '${kp.ringkasanHariIni!['sudah_pmt'] ?? 0}'),
+                          ]),
+                        ),
                       ),
-                    ),
-                  const SizedBox(height: 8),
-                  ...kp.hariIni.map((k) => _KunjunganRow(
-                        kunjungan: k,
-                        onPeriksa: isAdmin
-                            ? () async {
-                                final result = await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => k.kategori == 'balita'
-                                        ? PemeriksaanBalitaFormScreen(
-                                            kunjunganId: k.id,
-                                            namaWarga: k.namaWarga ?? '-',
-                                            tanggalLahir: k.tanggalLahir)
-                                        : PemeriksaanPosbinduFormScreen(
-                                            kunjunganId: k.id,
-                                            namaWarga: k.namaWarga ?? '-',
-                                            tanggalLahir: k.tanggalLahir),
-                                  ),
-                                );
-                                if (result == true && mounted) _load();
-                              }
-                            : null,
-                        onKonfirmasiPmt:
-                            isAdmin ? () => _konfirmasiPMT(k.id) : null,
-                      )),
-                ]);
-              }),
+                    const SizedBox(height: 8),
+                    ...kp.hariIni.map((k) => _KunjunganRow(
+                          kunjungan: k,
+                          onCheckin:
+                              k.masihMenunggu ? () => _checkinById(k.id) : null,
+                          onPeriksa: k.sudahCheckin
+                              ? () async {
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => k.kategori == 'balita'
+                                          ? PemeriksaanBalitaFormScreen(
+                                              kunjunganId: k.id,
+                                              namaWarga: k.namaWarga ?? '-',
+                                              tanggalLahir: k.tanggalLahir)
+                                          : PemeriksaanPosbinduFormScreen(
+                                              kunjunganId: k.id,
+                                              namaWarga: k.namaWarga ?? '-',
+                                              tanggalLahir: k.tanggalLahir),
+                                    ),
+                                  );
+                                  if (result == true && mounted) _load();
+                                }
+                              : null,
+                          onKonfirmasiPmt:
+                              k.sudahCheckin ? () => _konfirmasiPMT(k.id) : null,
+                        )),
+                  ]);
+                }),
+              ] else ...[
+                const SectionHeader(title: 'Status Pendaftaran Saya'),
+                Consumer<KunjunganProvider>(builder: (_, kp, __) {
+                  if (kp.isLoading)
+                    return const ShimmerList(count: 2, itemHeight: 70);
+                  final punyaSaya =
+                      kp.list.where((k) => !k.dibatalkan).toList();
+                  if (punyaSaya.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                          'Belum ada balita/lansia yang didaftarkan ke jadwal ini',
+                          style: TextStyle(color: AppColors.textSecondary)),
+                    );
+                  }
+                  return Column(
+                      children: punyaSaya
+                          .map((k) => _PendaftaranSayaCard(
+                                kunjungan: k,
+                                onBatalkan: k.masihMenunggu
+                                    ? () => _batalkanPendaftaran(k.id)
+                                    : null,
+                              ))
+                          .toList());
+                }),
+              ],
               const SizedBox(height: 24),
             ]),
           );
@@ -1226,10 +1731,11 @@ class _JadwalDetailScreenState extends State<JadwalDetailScreen> {
 
 class _KunjunganRow extends StatelessWidget {
   final KunjunganModel kunjungan;
+  final VoidCallback? onCheckin;
   final VoidCallback? onPeriksa;
   final VoidCallback? onKonfirmasiPmt;
   const _KunjunganRow(
-      {required this.kunjungan, this.onPeriksa, this.onKonfirmasiPmt});
+      {required this.kunjungan, this.onCheckin, this.onPeriksa, this.onKonfirmasiPmt});
 
   bool get _sudahDiperiksa =>
       kunjungan.sudahDiperiksaBalita || kunjungan.sudahDiperiksaPosbindu;
@@ -1264,7 +1770,19 @@ class _KunjunganRow extends StatelessWidget {
                         fontSize: 11, color: AppColors.textSecondary)),
               ],
             )),
-            if (kunjungan.kategori == 'balita' && kunjungan.statusGizi != null)
+            if (kunjungan.masihMenunggu)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                    color: AppColors.warning.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8)),
+                child: const Text('Menunggu',
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.w700)),
+              )
+            else if (kunjungan.kategori == 'balita' && kunjungan.statusGizi != null)
               StatusGiziBadge(kode: kunjungan.statusGizi)
             else if (kunjungan.kategori == 'lansia' &&
                 kunjungan.statusTensi != null)
@@ -1272,11 +1790,18 @@ class _KunjunganRow extends StatelessWidget {
           ]),
           const SizedBox(height: 8),
           Row(children: [
-            _mejaDot('1', true),
+            _mejaDot('1', kunjungan.sudahCheckin),
             _mejaDot('2-3', _sudahDiperiksa),
             _mejaDot('4', kunjungan.sudahPMT),
             const Spacer(),
-            if (!_sudahDiperiksa && onPeriksa != null)
+            if (kunjungan.masihMenunggu && onCheckin != null)
+              ElevatedButton(
+                  onPressed: onCheckin,
+                  style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                      minimumSize: const Size(0, 32)),
+                  child: const Text('Check-in', style: TextStyle(fontSize: 12)))
+            else if (!_sudahDiperiksa && onPeriksa != null)
               TextButton(onPressed: onPeriksa, child: const Text('Periksa'))
             else if (_sudahDiperiksa &&
                 !kunjungan.sudahPMT &&
@@ -1375,6 +1900,166 @@ class _PilihWargaSheet extends StatelessWidget {
               );
             }),
           ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─── Bottom sheet: pilih cara mendaftar (data lama vs data baru) ───
+class _PilihanDaftarSheet extends StatelessWidget {
+  const _PilihanDaftarSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+      decoration: const BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+                color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+        const SizedBox(height: 16),
+        const Text('Daftarkan Siapa?',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+        const SizedBox(height: 4),
+        const Text('Pilih data balita/lansia yang sudah ada, atau isi formulir baru',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            textAlign: TextAlign.center),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton.icon(
+            onPressed: () => Navigator.pop(context, 'lama'),
+            icon: const Icon(Icons.people_outline),
+            label: const Text('Pilih Data yang Sudah Ada'),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, 'baru'),
+            icon: const Icon(Icons.person_add_alt_1_rounded),
+            label: const Text('Isi Formulir Data Baru'),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─── Bottom sheet: pilih salah satu data balita/lansia milik akun sendiri ───
+class _PilihWargaMilikSendiriSheet extends StatelessWidget {
+  const _PilihWargaMilikSendiriSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.35,
+      maxChildSize: 0.9,
+      builder: (_, scrollCtrl) => Container(
+        decoration: const BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        child: Column(children: [
+          const SizedBox(height: 12),
+          Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 12),
+          const Text('Pilih Data Balita/Lansia',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          const SizedBox(height: 8),
+          Expanded(
+            child: Consumer<WargaProvider>(builder: (_, provider, __) {
+              if (provider.isLoading) return const ShimmerList(count: 4);
+              final list = provider.list;
+              if (list.isEmpty) {
+                return const EmptyState(
+                    title: 'Belum ada data balita/lansia',
+                    subtitle: 'Isi formulir data baru terlebih dahulu');
+              }
+              return ListView.builder(
+                controller: scrollCtrl,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: list.length,
+                itemBuilder: (_, i) {
+                  final w = list[i];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppColors.primaryLighter,
+                      child: Icon(
+                          w.isBalita ? Icons.child_care_rounded : Icons.elderly,
+                          color: AppColors.primary),
+                    ),
+                    title: Text(w.namaTampilan),
+                    subtitle: Text(
+                        'NIK: ${w.nik} · Umur: ${hitungUmur(w.tanggalLahir, isBalita: w.isBalita)}'),
+                    onTap: () => Navigator.pop(context, w),
+                  );
+                },
+              );
+            }),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─── Kartu status pendaftaran milik warga sendiri di suatu jadwal ───
+class _PendaftaranSayaCard extends StatelessWidget {
+  final KunjunganModel kunjungan;
+  final VoidCallback? onBatalkan;
+  const _PendaftaranSayaCard({required this.kunjungan, this.onBatalkan});
+
+  @override
+  Widget build(BuildContext context) {
+    final warna = kunjungan.sudahCheckin
+        ? AppColors.success
+        : (kunjungan.masihMenunggu ? AppColors.warning : AppColors.textHint);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(children: [
+          CircleAvatar(
+            backgroundColor: AppColors.primaryLighter,
+            child: Icon(
+                kunjungan.kategori == 'balita'
+                    ? Icons.child_care_rounded
+                    : Icons.elderly,
+                color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(kunjungan.namaWarga ?? '-',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                const SizedBox(height: 2),
+                Text(kunjungan.statusKehadiranLabel,
+                    style: TextStyle(fontSize: 11, color: warna, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          if (onBatalkan != null)
+            TextButton(
+              onPressed: onBatalkan,
+              style: TextButton.styleFrom(foregroundColor: AppColors.error),
+              child: const Text('Batalkan'),
+            ),
         ]),
       ),
     );

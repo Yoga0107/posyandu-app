@@ -1,6 +1,6 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
-export "FLUTTER_ROOT=C:\Users\Yoga.Putra\Downloads\flutter_windows_3.44.6-stable\flutter"
+export "FLUTTER_ROOT=D:\ryan\posyandu_app\flutter"
 export "FLUTTER_APPLICATION_PATH=C:\skripsi ryan\posyandu_app"
 export "FLUTTER_FRAMEWORK_SWIFT_PACKAGE_PATH=C:\skripsi ryan\posyandu_app\ios\Flutter\ephemeral\Packages\.packages\FlutterFramework"
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"

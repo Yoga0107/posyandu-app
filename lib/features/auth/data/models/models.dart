@@ -152,9 +152,12 @@ class KunjunganModel {
   final String wargaId;
   final String? jadwalId;
   final String dicatatOleh;
-  final String waktuCheckin;
+  final String? waktuCheckin;
   final String statusPmt; // 'belum' | 'sudah'
   final String? waktuPmt;
+  // Alur pendaftaran -> check-in
+  final String statusKehadiran; // 'terdaftar' | 'hadir' | 'batal'
+  final String? waktuDaftar;
   // Joined
   final String? namaWarga;
   final String? kategori;
@@ -169,14 +172,23 @@ class KunjunganModel {
   final int? nomorUrut;
   final Map<String, bool>? progresMeja;
 
-  KunjunganModel({required this.id, required this.wargaId, this.jadwalId, required this.dicatatOleh, required this.waktuCheckin, required this.statusPmt, this.waktuPmt, this.namaWarga, this.kategori, this.tanggalLahir, this.tanggalJadwal, this.jenisKegiatan, this.namaKader, this.sudahDiperiksaBalita = false, this.sudahDiperiksaPosbindu = false, this.statusGizi, this.statusTensi, this.nomorUrut, this.progresMeja});
+  KunjunganModel({required this.id, required this.wargaId, this.jadwalId, required this.dicatatOleh, this.waktuCheckin, required this.statusPmt, this.waktuPmt, this.statusKehadiran = 'hadir', this.waktuDaftar, this.namaWarga, this.kategori, this.tanggalLahir, this.tanggalJadwal, this.jenisKegiatan, this.namaKader, this.sudahDiperiksaBalita = false, this.sudahDiperiksaPosbindu = false, this.statusGizi, this.statusTensi, this.nomorUrut, this.progresMeja});
 
   bool get sudahPMT => statusPmt == 'sudah';
+  bool get sudahCheckin => statusKehadiran == 'hadir';
+  bool get masihMenunggu => statusKehadiran == 'terdaftar';
+  bool get dibatalkan => statusKehadiran == 'batal';
+  String get statusKehadiranLabel => {
+        'terdaftar': 'Menunggu Check-in',
+        'hadir': 'Sudah Check-in',
+        'batal': 'Dibatalkan',
+      }[statusKehadiran] ?? statusKehadiran;
 
   factory KunjunganModel.fromJson(Map<String, dynamic> j) => KunjunganModel(
     id: j['id'] ?? j['kunjungan_id'], wargaId: j['warga_id'], jadwalId: j['jadwal_id'],
     dicatatOleh: j['dicatat_oleh'] ?? '', waktuCheckin: j['waktu_checkin'],
     statusPmt: j['status_pmt'], waktuPmt: j['waktu_pmt'],
+    statusKehadiran: j['status_kehadiran'] ?? 'hadir', waktuDaftar: j['waktu_daftar'],
     namaWarga: j['nama_warga'] ?? j['nama'], kategori: j['kategori'],
     tanggalLahir: j['tanggal_lahir'], tanggalJadwal: j['tanggal_jadwal'],
     jenisKegiatan: j['jenis_kegiatan'], namaKader: j['nama_kader'],

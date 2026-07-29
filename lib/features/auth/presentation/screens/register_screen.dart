@@ -12,6 +12,16 @@
 //  POST /warga — makanya layar ini diubah menjadi form "Tambah Data
 //  Warga", memakai WargaProvider.create() yang sudah sesuai dengan
 //  warga.controller.js.
+//
+//  ALUR PENDAFTARAN KE JADWAL:
+//  Layar ini sekarang juga berfungsi sebagai "Formulir Pendaftaran"
+//  balita/lansia ke suatu jadwal kegiatan. Kalau dibuka dengan
+//  [jadwalId] terisi (mis. dari tombol "Daftar" di detail jadwal),
+//  jadwal tsb ditampilkan (terkunci, tidak bisa diganti) dan ikut
+//  dikirim sebagai `jadwal_id` saat submit — sehingga POST /warga
+//  sekaligus membuat pendaftaran (status 'terdaftar') ke jadwal itu.
+//  Kader yang nanti meng-check-in warga saat benar-benar hadir di
+//  lokasi (Meja 1 fisik).
 // ═══════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -19,7 +29,11 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/providers.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  /// Kalau terisi, formulir ini juga akan mendaftarkan warga baru ke
+  /// jadwal dengan id tsb (lihat catatan di atas).
+  final String? jadwalId;
+  final String? jadwalLabel;
+  const RegisterScreen({super.key, this.jadwalId, this.jadwalLabel});
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
@@ -77,14 +91,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       'kategori': _kategori,
       'nama_orang_tua': _namaOrangTuaCtrl.text.trim().isNotEmpty ? _namaOrangTuaCtrl.text.trim() : null,
       'alamat': _alamatCtrl.text.trim().isNotEmpty ? _alamatCtrl.text.trim() : null,
+      if (widget.jadwalId != null) 'jadwal_id': widget.jadwalId,
     });
 
     if (!mounted) return;
     if (ok) {
       Navigator.pop(context, true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Data warga berhasil didaftarkan'), backgroundColor: AppColors.success),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(widget.jadwalId != null
+            ? 'Pendaftaran berhasil. Datang sesuai jadwal untuk check-in di lokasi.'
+            : 'Data warga berhasil didaftarkan'),
+        backgroundColor: AppColors.success,
+      ));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(warga.error ?? 'Gagal mendaftarkan data warga'),
@@ -97,13 +115,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Tambah Data Warga')),
+      appBar: AppBar(
+          title: Text(widget.jadwalId != null
+              ? 'Formulir Pendaftaran'
+              : 'Tambah Data Warga')),
       body: Consumer<WargaProvider>(
         builder: (_, warga, __) => Form(
           key: _formKey,
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
+              if (widget.jadwalId != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLighter,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.event_available_rounded, color: AppColors.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Mendaftar untuk jadwal',
+                              style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                          Text(widget.jadwalLabel ?? '-',
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ]),
+                ),
+                const SizedBox(height: 20),
+              ],
               // Kategori
               const Text('Kategori', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textSecondary)),
               const SizedBox(height: 8),
@@ -193,7 +239,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onPressed: warga.isLoading ? null : _submit,
                   child: warga.isLoading
                       ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                      : const Text('Simpan'),
+                      : Text(widget.jadwalId != null ? 'Daftar' : 'Simpan'),
                 ),
               ),
             ],
