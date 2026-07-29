@@ -69,11 +69,18 @@ class AppConstants {
   // ─────────────────────────────────────────────────────────────
 
   static const Map<String, String> labelStatusGizi = {
+    // Balita — dari z-score WHO berdasar umur (lihat statusGizi.js `hitungStatusGizi`)
     'normal': 'Normal',
     'stunting': 'Stunting (Pendek)',
     'underweight': 'Berat Badan Kurang',
     'overweight': 'Berat Badan Lebih',
     'gizi-buruk': 'Gizi Buruk',
+    // Dewasa/Lansia — dari IMT (lihat statusGizi.js `hitungStatusGiziDewasa`),
+    // perhitungan yang BERBEDA dari balita (bukan berdasar kurva umur)
+    'kurus-berat': 'Kurus (Kekurangan BB Berat)',
+    'kurus-ringan': 'Kurus (Kekurangan BB Ringan)',
+    'gemuk-ringan': 'Gemuk (Kelebihan BB Ringan)',
+    'gemuk-berat': 'Gemuk (Obesitas)',
   };
 
   // Alias untuk backward compatibility

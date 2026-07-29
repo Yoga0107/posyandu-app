@@ -73,6 +73,11 @@ class AppColors {
       case 'underweight':       return statusKurang;
       case 'overweight':        return statusLebih;
       case 'gizi-buruk':        return statusBuruk;
+      // Dewasa/Lansia (IMT) — kode berbeda dari balita
+      case 'kurus-berat':       return statusBuruk;
+      case 'kurus-ringan':      return statusKurang;
+      case 'gemuk-ringan':      return statusLebih;
+      case 'gemuk-berat':       return statusBuruk;
       default:                  return textSecondary;
     }
   }

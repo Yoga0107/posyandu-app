@@ -254,14 +254,19 @@ class PemeriksaanPosbinduModel {
   final String id;
   final String kunjunganId;
   final double beratBadanKg;
+  final double? tinggiBadanCm;
   final int tensiSistol;
   final int tensiDiastol;
   final String? keluhan;
   final String? faktorRisikoPtm;
   final String? statusTensi;
   final String? labelStatus;
+  // Status gizi (IMT) — perhitungan terpisah dari status tensi
+  final String? statusGizi;
+  final double? imt;
+  final String? labelGizi;
 
-  PemeriksaanPosbinduModel({required this.id, required this.kunjunganId, required this.beratBadanKg, required this.tensiSistol, required this.tensiDiastol, this.keluhan, this.faktorRisikoPtm, this.statusTensi, this.labelStatus});
+  PemeriksaanPosbinduModel({required this.id, required this.kunjunganId, required this.beratBadanKg, this.tinggiBadanCm, required this.tensiSistol, required this.tensiDiastol, this.keluhan, this.faktorRisikoPtm, this.statusTensi, this.labelStatus, this.statusGizi, this.imt, this.labelGizi});
 
   factory PemeriksaanPosbinduModel.fromJson(Map<String, dynamic> j) {
     final p = j['pemeriksaan'] ?? j;
@@ -269,11 +274,15 @@ class PemeriksaanPosbinduModel {
     return PemeriksaanPosbinduModel(
       id: p['id'], kunjunganId: p['kunjungan_id'],
       beratBadanKg: _toDouble(p['berat_badan_kg']),
+      tinggiBadanCm: p['tinggi_badan_cm'] != null ? _toDouble(p['tinggi_badan_cm']) : null,
       tensiSistol: _toInt(p['tensi_sistol']),
       tensiDiastol: _toInt(p['tensi_diastol']),
       keluhan: p['keluhan'], faktorRisikoPtm: p['faktor_risiko_ptm'],
       statusTensi: p['status_tensi'],
       labelStatus: a != null ? a['label'] : null,
+      statusGizi: p['status_gizi'] ?? (a != null ? a['statusGizi'] : null),
+      imt: a != null && a['imt'] != null ? _toDouble(a['imt']) : null,
+      labelGizi: a != null ? a['labelGizi'] : null,
     );
   }
 }
